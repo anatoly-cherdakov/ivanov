@@ -2722,7 +2722,7 @@ main > .site-header + .grid > .card .muted{
 <div class="site-header"><h1>Паркраны Владимира Иванова</h1><div class="site-switch-wrap"><a aria-label="Перейти: Забеги" class="site-switch" href="https://anatoly-cherdakov.github.io/ivanov_run/"><span aria-hidden="true">🏆</span><span>Забеги</span></a><a aria-label="Перейти: Интервью" class="site-switch" href="https://anatoly-cherdakov.github.io/interview/"><span aria-hidden="true">📰</span><span>Интервью</span></a></div></div>
 <div class="grid"><div class="card stat-starts"><div class="stat-icon-new">🏁</div><div class="stat-content"><div class="num">437</div><div class="muted">стартов</div></div></div><div class="card stat-half"><div class="stat-icon-new">🌳</div><div class="stat-content"><div class="num">260</div><div class="muted">parkrun</div></div></div><div class="card stat-ultra"><div class="stat-icon-new">🎽</div><div class="stat-content"><div class="num">174</div><div class="muted">С95</div></div></div><div class="card stat-marathon"><div class="stat-icon-new">5️⃣</div><div class="stat-content"><div class="num">3</div><div class="muted">5 вёрст</div></div></div></div>
 <div class="refresh-control">
-<button id="refresh-results" type="button" title="Получить свежие результаты напрямую с run5k.run">Обновить результаты</button>
+<button id="refresh-results" type="button" title="Получить последнюю сохранённую версию результатов run5k.run">Обновить результаты</button>
 <span aria-live="polite" id="refresh-status" role="status"></span>
 </div>
 <h2>Все старты</h2>
@@ -2829,7 +2829,7 @@ function showYear(year, button){
 (function () {
   'use strict';
   const PROFILE = 'ivanov';
-  const WORKER_URL = 'https://snowy-hill-e211.anatoly-cherdakov.workers.dev/';
+  const RESULTS_URL = 'https://raw.githubusercontent.com/anatoly-cherdakov/ivanov/main/run5k-results.json';
   const button = document.getElementById('refresh-results');
   const status = document.getElementById('refresh-status');
   const systems = {s95:'С95', parkrun:'parkrun', five_verst:'5 вёрст', runpark:'RunPark'};
@@ -2912,8 +2912,10 @@ function showYear(year, button){
     }
     if(!/^\d{2}:\d{2}:\d{2}$/.test(finish)) return null;
 
-    const place=norm(first(raw.location_name,raw.location_title,raw.place_name,raw.place,eventObj.location_name,eventObj.place_name,loc.name,loc.title,loc.display_name));
+    let place=norm(first(raw.location_name,raw.location_title,raw.place_name,raw.place,eventObj.location_name,eventObj.place_name,loc.name,loc.title,loc.display_name));
     if(!place) return null;
+    // run5k сократил название этой локации; сохраняем подпись существующих строк.
+    if(place==='Раменское' && code==='parkrun')place='Раменское Городской парк';
     const old=baseline.find(r=>r.place===place);
     const city=norm(first(raw.location_city,raw.city,eventObj.location_city,loc.city,loc.town,loc.locality,old ? old.city.split(',')[0] : ''));
     if(!city) return null;
@@ -3025,9 +3027,7 @@ function showYear(year, button){
     return repo && !repo.endsWith('.html') ? owner+'/'+decodeURIComponent(repo) : owner+'/'+location.hostname;
   }
   async function fetchJSON(url,allow404){
-    if(!url || url.includes('PASTE-YOUR-WORKER-URL-HERE')){
-      throw Error('Cloudflare Worker ещё не настроен');
-    }
+    if(!url)throw Error('Не указан адрес результатов');
     const bust=url+(url.includes('?')?'&':'?')+'_cb='+Date.now();
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
     try{
@@ -3036,12 +3036,12 @@ function showYear(year, button){
       if(!response.ok){
         let details='';
         try{details=(await response.text()).trim().slice(0,240);}catch(_){ }
-        throw Error('Worker HTTP '+response.status+(details?' — '+details:''));
+        throw Error('Источник результатов HTTP '+response.status+(details?' — '+details:''));
       }
       const text=await response.text();
-      try{return JSON.parse(text);}catch(_){throw Error('Worker вернул не JSON');}
+      try{return JSON.parse(text);}catch(_){throw Error('Источник результатов вернул не JSON');}
     }catch(error){
-      if(error && error.name==='AbortError')throw Error('Worker не ответил за 25 секунд');
+      if(error && error.name==='AbortError')throw Error('Источник результатов не ответил за 25 секунд');
       throw error;
     }finally{
       clearTimeout(timer);
@@ -3051,51 +3051,22 @@ function showYear(year, button){
     if(!data || data.profile!==PROFILE || !Array.isArray(data.runs))throw Error('Неверный профиль или формат результатов');
     return data;
   }
-  function extractDashboardRuns(payload){
-    const found=[];
-    const visited=new Set();
-    function walk(value,depth){
-      if(value==null || depth>10)return;
-      if(Array.isArray(value)){
-        for(const item of value)walk(item,depth+1);
-        return;
-      }
-      if(typeof value!=='object' || visited.has(value))return;
-      visited.add(value);
-      if(normalize(value))found.push(value);
-      for(const v of Object.values(value)){
-        if(v && (typeof v==='object'))walk(v,depth+1);
-      }
+  async function loadLatest(){
+    const data=validate(await fetchJSON(RESULTS_URL));
+    if(data.repository!=='anatoly-cherdakov/ivanov')throw Error('Неверный репозиторий результатов');
+    if(!data.runs.length || data.runs.some(raw=>!normalize(raw))){
+      throw Error('Файл результатов пуст или содержит нераспознанные записи');
     }
-    walk(payload,0);
-    const unique=new Map();
-    for(const raw of found){
-      const r=normalize(raw);
-      if(!r)continue;
-      const id=[r.date,r.place,r.city,r.system,r.time].join('|');
-      if(!unique.has(id))unique.set(id,raw);
-    }
-    return Array.from(unique.values());
-  }
-  async function dashboardFromPayload(payload){
-    if(!payload)return null;
-    const runs=extractDashboardRuns(payload);
-    if(!runs.length)throw Error('Ответ dashboard получен, но в нём не найдены результаты стартов');
-    return validate({profile:PROFILE,runs});
+    return data;
   }
   async function loadSavedSnapshot(){
-    const payload=await fetchJSON(WORKER_URL+'?action=saved',true);
-    return payload ? dashboardFromPayload(payload) : null;
-  }
-  async function loadLatest(){
-    const payload=await fetchJSON(WORKER_URL+'?action=refresh');
-    return dashboardFromPayload(payload);
+    return loadLatest();
   }
   function boot(){
     updateStats();
 
     // При открытии страницы читается только последняя общая сохранённая копия.
-    // run5k.run при этом НЕ опрашивается: свежая проверка выполняется только кнопкой.
+    // Полный список регулярно обновляет GitHub Actions; кнопка повторно читает его без кеша.
     (async function restoreSharedSnapshot(){
       try{
         const data=await loadSavedSnapshot();
@@ -3114,10 +3085,10 @@ function showYear(year, button){
       try{
         const data=await loadLatest();
         const count=apply(data.runs);
-        const recognized=data.runs.map(normalize).filter(Boolean).length;
+        const latest=data.runs.map(normalize).sort((a,b)=>dateKey(b.date).localeCompare(dateKey(a.date)))[0].date;
         status.textContent=count
-          ? 'Добавлено результатов: '+count+'. Сохранено для всех браузеров.'
-          : 'Новых результатов нет';
+          ? 'Добавлено результатов: '+count+'. Последний старт: '+latest+'.'
+          : 'Новых результатов в сохранённом списке нет. Последний старт: '+latest+'.';
       }catch(error){
         status.textContent='Не удалось обновить результаты: '+(error&&error.message?error.message:'неизвестная ошибка');
         console.error('run5k refresh:',error);

@@ -1,0 +1,183 @@
+
+:root{--ink:#222;--paper:#fff;--line:#e5e5e5}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#f5f5f5;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.top{background:#fff;border-bottom:1px solid #ddd}
+.topin{max-width:1180px;margin:auto;padding:20px 28px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:900;font-size:25px;letter-spacing:-1px}
+.logo span{color:#e30613}.collection{font-size:14px;color:#777}
+nav{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;text-align:center;padding:13px}
+nav a{color:#222;text-decoration:none;font-size:13px;font-weight:bold;margin:0 15px}
+main{max-width:1100px;margin:0 auto;padding:34px 20px 80px}
+.interview{margin:0 0 48px;background:#fff}
+.source-head{padding:18px 28px;border-bottom:1px solid var(--line);font-size:13px;color:#777}
+.source-head a{color:inherit;text-decoration:none}
+.champ{max-width:920px;margin-left:auto;margin-right:auto;padding:42px 54px 60px;font-family:Arial,Helvetica,sans-serif}
+.champ .kicker{color:#777;font-size:14px;margin-bottom:20px}
+.champ h2{font-family:Georgia,serif;font-size:46px;line-height:1.08;margin:0 0 28px;letter-spacing:-.6px}
+.person{display:flex;gap:16px;align-items:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0;margin:0 0 28px}
+.person img{width:76px;height:76px;object-fit:cover;border-radius:50%}
+.person b{display:block;font-size:18px}.person span{display:block;color:#777;font-size:14px;margin-top:3px}
+.champ p{font-family:Georgia,serif;font-size:19px;line-height:1.62;margin:22px 0}
+.champ blockquote{margin:30px 0;padding:18px 24px;border-left:4px solid #e30613;background:#f7f7f7;font:italic 22px/1.45 Georgia,serif}
+.article-photo{margin:32px -54px 28px}
+.article-photo img{width:100%;display:block}
+.caption{font-size:12px;color:#777;margin:8px 54px 0}
+.habr{max-width:800px;margin:auto;padding:45px 58px 65px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.habr .hub{font-size:13px;color:#777;margin-bottom:15px}
+.habr h2{font-size:38px;line-height:1.12;margin:0 0 10px}
+.habr .author{font-size:14px;color:#777;padding-bottom:26px;border-bottom:1px solid var(--line);margin-bottom:25px}
+.habr p{font-size:17px;line-height:1.65;margin:18px 0}
+.habr strong{font-weight:700}
+.izm{max-width:900px;margin:auto;padding:0 0 55px;font-family:Arial,Helvetica,sans-serif}
+.izm-title{padding:52px 52px 36px;background:#eff5ee;border-bottom:5px solid #4f7a55}
+.izm-title .brand{color:#4f7a55;font-weight:800;letter-spacing:.05em;font-size:14px}
+.izm-title h2{font-size:46px;line-height:1.05;margin:14px 0 0}
+.qa{padding:28px 52px}
+.qa h3{font-size:22px;line-height:1.35;margin:35px 0 10px}
+.qa p{font-size:18px;line-height:1.68;margin:0}
+.original{margin-top:42px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:#777}
+.original a{color:#777}
+footer{text-align:center;color:#888;font-size:13px;padding:35px}
+@media(max-width:700px){
+ .topin{padding:16px}.collection{display:none}
+ main{padding:0}
+ .interview{margin-bottom:18px}
+ .champ,.habr{padding:30px 22px 45px}
+ .champ h2,.izm-title h2{font-size:34px}.habr h2{font-size:30px}
+ .article-photo{margin:28px -22px}.caption{margin-left:22px;margin-right:22px}
+ .izm-title,.qa{padding-left:22px;padding-right:22px}
+ nav{overflow:auto;white-space:nowrap;text-align:left}
+ nav a{margin:0 9px}
+}
+
+
+
+.habr .article-photo{margin:30px 0 26px}
+.habr .article-photo img{width:100%;display:block}
+.habr .caption{margin:8px 0 0}
+
+
+
+.izm .member-photo{margin:30px 0 34px}
+.izm .member-photo img{width:100%;display:block}
+.izm .member-photo figcaption{font-size:12px;color:#777;margin-top:8px}
+
+
+
+.topin{
+  justify-content:flex-start;
+  gap:26px;
+}
+.logo{
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:900;
+  font-size:25px;
+  line-height:1;
+  letter-spacing:-1px;
+  white-space:nowrap;
+}
+.top-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.top-button{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  height:52px;
+  padding:0 20px;
+  border:1px solid #cfd4d8;
+  border-radius:12px;
+  background:#f7f8f8;
+  box-shadow:0 2px 8px rgba(0,0,0,.10);
+  color:#34495e;
+  text-decoration:none;
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:900;
+  font-size:25px;
+  line-height:1;
+  letter-spacing:-1px;
+  white-space:nowrap;
+}
+.top-button span{
+  display:inline-block;
+  transform:translateY(0);
+}
+.top-button:hover{
+  background:#fff;
+}
+@media(max-width:700px){
+  .topin{gap:12px;align-items:center}
+  .top-actions{gap:7px;min-width:0}
+  .top-button{
+    height:42px;
+    padding:0 10px;
+    gap:5px;
+    font-size:18px;
+    border-radius:9px;
+  }
+  .logo{font-size:20px}
+}
+
+
+
+@media (max-width:700px){
+  .topin{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:7px 12px!important;
+  }
+  .top-actions{
+    display:contents!important;
+  }
+  .logo{font-size:20px!important;}
+  .top-button{font-size:18px!important;flex:none!important;width:max-content!important;}
+  .top-button:first-child{order:0!important;}
+  .top-button:nth-child(2){
+    order:1!important;
+    flex-basis:auto!important;
+    width:max-content!important;
+    margin-right:100%!important;
+  }
+}
+
+/* Additional media use the same article layout. */
+[data-interview-panel]{scroll-margin-top:58px}
+.interview-menu a:focus-visible{outline:2px solid #777;outline-offset:5px}
+.interview-video article,.interview-links article{max-width:900px;margin:auto;padding:42px 52px 55px}
+.interview-video video{display:block;width:100%;max-height:75vh;background:#111}
+.interview-video time{font-size:13px;color:#777}
+.video-description{font-size:18px;line-height:1.68;white-space:pre-wrap}
+.interview-video .bot-refresh{display:inline-block;color:#34495e;border:1px solid #cfd4d8;border-radius:9px;padding:12px 18px;text-decoration:none}
+.interview-links h2{font-size:30px;line-height:1.2}
+.interview-links a{color:inherit}
+@media(max-width:700px){.interview-video article,.interview-links article{padding:30px 22px 45px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* Shared navigation geometry on running, parkrun and interview pages. */
+.site-header{display:flex;align-items:center;flex-wrap:wrap;gap:18px;margin:0 0 14px;padding:0}
+.site-header .site-switch-wrap{display:contents}
+.site-header .site-current,.site-header .site-switch{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:49px;margin:0;padding:8px 14px;font:900 25px/1.15 Arial,sans-serif;letter-spacing:normal;white-space:nowrap;border-radius:12px;text-decoration:none}
+.site-header .site-current{border:2px solid #197340;background:#edf8f0;color:#111}
+.site-header .site-switch{gap:9px;border:1px solid rgba(20,35,50,.20);background:rgba(255,255,255,.72);box-shadow:0 2px 7px rgba(0,0,0,.10);color:#24313f}
+.site-header .site-switch span{font:inherit;transform:none;line-height:1.15}
+.site-header .site-switch:hover{background:#fff}
+.site-header .site-switch:focus-visible{outline:3px solid rgba(45,110,180,.45);outline-offset:2px}
+.interview-site-header{padding:10px 20px 0}
+.interview-site-header>.site-header{box-sizing:border-box;max-width:1180px;margin:0 auto;padding:28px 20px 14px}
+@media(max-width:700px){
+ .site-header{gap:7px 12px}
+ .site-header .site-current,.site-header .site-switch{min-height:43px;font-size:20px;padding:7px 9px}
+ .interview-site-header{padding:8px 8px 0}
+ .interview-site-header>.site-header{width:100%;max-width:none;padding:0 0 14px}
+}
+
+.interview-site-header{padding:2px 20px 0}
+.interview-site-header>.site-header{padding:0 20px 8px;gap:10px 18px}
+.site-header .site-current{border:0;background:transparent;padding:0;min-height:0;font-size:30px}
+.site-header .site-switch{font-size:30px;padding:5px 10px;min-height:0}
+@media(max-width:700px){.interview-site-header{padding:8px 8px 0}.interview-site-header>.site-header{padding:0 0 8px}.site-header .site-current,.site-header .site-switch{font-size:20px}}

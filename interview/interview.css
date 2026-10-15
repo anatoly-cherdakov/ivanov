@@ -181,3 +181,7 @@ footer{text-align:center;color:#888;font-size:13px;padding:35px}
 .site-header .site-current{border:0;background:transparent;padding:0;min-height:0;font-size:30px}
 .site-header .site-switch{font-size:30px;padding:5px 10px;min-height:0}
 @media(max-width:700px){.interview-site-header{padding:8px 8px 0}.interview-site-header>.site-header{padding:0 0 8px}.site-header .site-current,.site-header .site-switch{font-size:20px}}
+
+/* Keep the same top spacing on all three pages. */
+.interview-site-header{padding-top:14px!important}
+.site-header .site-switch{gap:9px}

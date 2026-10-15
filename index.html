@@ -2591,9 +2591,7 @@ main > .sub{
 .site-switch-wrap .site-switch[aria-label="Перейти: Забеги"]{
   display:inline-flex;
 }
-.site-switch-wrap .site-switch[aria-label="Перейти: Интервью"]{
-  display:none;
-}
+
 
 
 .year-badges{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px;margin-top:4px}
@@ -3312,5 +3310,14 @@ function init(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>
+
+<style id="HEADER_SPACING_FIX">
+html body{padding-top:14px!important}
+html body main .site-header .site-switch{display:inline-flex!important;gap:9px!important}
+html body main .site-header .site-switch-wrap{display:contents!important}
+</style>
+<style id="STAT_ICON_SPACING_FIX">
+html body main .grid .card{column-gap:12px!important}
+</style>
 </body>
 </html>

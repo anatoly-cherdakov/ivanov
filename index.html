@@ -2963,6 +2963,7 @@ function showYear(year, button){
     if(!place) return null;
     // run5k сократил название этой локации; сохраняем подпись существующих строк.
     if(place==='Раменское' && code==='parkrun')place='Раменское Городской парк';
+    if(place==='Улица Голубая' && code==='parkrun')place='Ulitsa Golubaya';
     const old=baseline.find(r=>r.place===place);
     const city=norm(first(raw.location_city,raw.city,eventObj.location_city,loc.city,loc.town,loc.locality,old ? old.city.split(',')[0] : ''));
     if(!city) return null;

@@ -20,6 +20,7 @@ body{margin:0;background:radial-gradient(ellipse at 50% -160px,#254477,#0c1730 5
 .duo-header small{font-size:13px;color:#bbd5ff}
 .duo-main{display:flex;justify-content:center;align-items:flex-start;padding:20px 12px 8px;min-height:540px}
 .start-screen{width:min(630px,100%);margin:14px auto;padding:24px 24px 18px;background:#14294f;border:3px solid #6282c5;box-shadow:0 12px 30px #0309109c;border-radius:12px;text-align:center}
+.friends-poster{display:block;width:min(416px,100%);height:auto;aspect-ratio:16/9;object-fit:cover;image-rendering:pixelated;border-radius:6px;border:3px solid #597fb8;margin:0 auto 18px}
 .start-screen h1{font-weight:900;letter-spacing:1px;color:#ffdb61;font-size:clamp(19px,3vw,26px);margin:4px 0 9px}
 .start-screen p{color:#cbd9f0}
 .hero-picks{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px auto;max-width:435px}
@@ -35,7 +36,7 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .primary{padding:13px 30px;background:#f6cd43;color:#171c2e;border:0;border-radius:8px;cursor:pointer;font-weight:900;font-size:17px;letter-spacing:.7px}
 .primary:disabled{opacity:.45;cursor:not-allowed}
 .primary:not(:disabled):hover{background:#ffe985}
-.menu-status{min-height:20px;font-size:13px}
+.menu-status{display:none;font-size:13px}.menu-status.is-error{display:block;color:#ffb89d}
 .menu-help{font-size:12px;color:#b9c9e5;line-height:1.55}
 #playing{width:512px;max-width:100%}
 .game-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-bottom:13px}
@@ -58,12 +59,12 @@ body.game-active .duo-header{display:none!important}
         
 <header class="duo-header">
   <strong>ДВА ДРУГА · 8-БИТ</strong>
-  <small>32 классических уровня · трубы · грибы роста · замки</small>
+  
 </header>
 <main class="duo-main">
 <section id="startScreen" class="start-screen" aria-labelledby="menuTitle">
- <h1 id="menuTitle">ВЫБЕРИ СВОЕГО ГЕРОЯ</h1>
- <p>Игра не начнётся, пока ты не нажмёшь «Играть».</p>
+ <img class="friends-poster" src="cover.png" width="416" height="234" alt="Два друга на заснеженном мосту в восьмибитном стиле"/><h1 id="menuTitle">ВЫБЕРИ СВОЕГО ГЕРОЯ</h1>
+ 
  <div class="hero-picks">
   <button id="choose-black" class="hero-pick" type="button" aria-pressed="false"><canvas id="portrait-black" width="64" height="96"></canvas><span>В чёрном</span><small>Ушанка и борода</small></button>
   <button id="choose-blue" class="hero-pick" type="button" aria-pressed="false"><canvas id="portrait-blue" width="64" height="96"></canvas><span>В синем</span><small>Синяя шапка и куртка</small></button>
@@ -81,7 +82,7 @@ body.game-active .duo-header{display:none!important}
  <div class="duo-tip">← → / A, D — движение · Пробел / ↑ / W — прыжок · Shift / Ctrl — бег и огонь после цветка · P — пауза</div>
 </div>
 </main>
-<footer class="duo-credit">Неофициальная некоммерческая адаптация браузерного движка <a href="https://github.com/zveronline/mario" target="_blank" rel="noopener">FullScreenMario</a>. Оригинальные персонажи, уровни, графика и музыка принадлежат Nintendo.</footer>
+
 <!-- build:js FullScreenMario.min.js -->
                 <script src="engine-01.js"></script>
         <script src="engine-02.js"></script>
@@ -140,7 +141,7 @@ function createFireOutfits(){
  context.putImageData(image,0,0);
  return cv;
 }
-function status(message){$("menuStatus").textContent=message;}
+function status(message){const el=$("menuStatus");el.textContent=message;el.classList.toggle("is-error",message.startsWith("Ошибка")||message.startsWith("Не удалось"));}
 function paintPreview(id,hero){
  const cv=$(id),ctx=cv.getContext("2d");
  ctx.imageSmoothingEnabled=false;

@@ -49,6 +49,11 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
 .duo-credit a{color:#c1d7ff}
+#startScreen[hidden],#playing[hidden]{display:none!important}
+.fire-controls{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 4px 5px}
+.fire-control{touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;min-height:55px;min-width:225px;padding:12px 24px;border:3px solid #ffe390;border-radius:10px;background:#b94425;color:#fff;font:900 17px Arial,sans-serif;box-shadow:0 4px 0 #722c1a}
+.fire-control:active,.fire-control.is-held{background:#dd6430;transform:translateY(3px);box-shadow:0 1px 0 #722c1a}
+.fire-label{font-size:13px;color:#c6d7f1}
 @media(max-width:565px){.duo-main{overflow-x:auto;justify-content:flex-start}.start-screen{min-width:0}#playing{min-width:512px}}
 </style></head>
 
@@ -76,7 +81,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 <div id="playing" hidden>
  <nav class="game-actions"><button id="backToMenu" type="button">☰ Сменить героя</button><button id="restart" type="button">↻ Начать уровень заново</button><label for="quality">Качество:</label><select id="quality"><option value="30" selected>30 к/с — быстро</option><option value="60">60 к/с — плавно</option><option value="20">20 к/с — экономно</option></select></nav>
  <div id="game"></div>
- <div class="duo-tip">← → — движение · Пробел / ↑ — прыжок · Shift — бег · P — пауза</div>
+ <div class="fire-controls"><button id="fireButton" class="fire-control" type="button" aria-label="Бег и огонь — удерживать для бега, нажимать для стрельбы">🔥 БЕГ / ОГОНЬ</button><span class="fire-label">Shift или Ctrl<br>Удерживай для бега, нажимай для огня после цветка</span></div>
+ <div class="duo-tip">← → — движение · Пробел / ↑ — прыжок · Shift / Ctrl — бег и огонь · P — пауза</div>
 </div>
 </main>
 <footer class="duo-credit">Неофициальная некоммерческая адаптация браузерного движка <a href="https://github.com/zveronline/mario" target="_blank" rel="noopener">FullScreenMario</a>. Оригинальные персонажи, уровни, графика и музыка принадлежат Nintendo.</footer>
@@ -100,7 +106,55 @@ let game=null;
 let drawingPatched=false;
 let face=1;
 let busy=false;
+let fireHeld=false;
+let lastFireEvent=0;
 const $=id=>document.getElementById(id);
+const fireEvent={preventDefault(){}};
+function fireDown(event){
+ if(event){event.preventDefault();event.stopPropagation();}
+ if(fireHeld||!game||!game.player||$("playing").hidden||game.GamesRunner.getPaused())return;
+ fireHeld=true;
+ lastFireEvent=Date.now();
+ $("fireButton").classList.add("is-held");
+ game.keyDownSprint(game.player,fireEvent);
+}
+function fireUp(event){
+ if(event){event.preventDefault();event.stopPropagation();}
+ if(!fireHeld)return;
+ fireHeld=false;
+ $("fireButton").classList.remove("is-held");
+ if(game&&game.player)game.keyUpSprint(game.player,fireEvent);
+}
+function setupFireButton(){
+ const button=$("fireButton");
+ button.addEventListener("pointerdown",event=>{
+   fireDown(event);
+   try{button.setPointerCapture(event.pointerId);}catch(_){}
+ });
+ button.addEventListener("pointerup",fireUp);
+ button.addEventListener("pointercancel",fireUp);
+ button.addEventListener("lostpointercapture",fireUp);
+ button.addEventListener("pointerleave",event=>{if(event.buttons===0)fireUp(event);});
+ button.addEventListener("keydown",event=>{
+   if(event.key===" "||event.key==="Enter"){
+     event.preventDefault();event.stopPropagation();
+     if(!event.repeat)fireDown();
+   }
+ });
+ button.addEventListener("keyup",event=>{
+   if(event.key===" "||event.key==="Enter")fireUp(event);
+ });
+ button.addEventListener("click",event=>{
+   event.stopPropagation();
+   if(event.detail===0&&Date.now()-lastFireEvent>200){
+     fireDown();setTimeout(()=>fireUp(),95);
+   }
+ });
+ window.addEventListener("pointerup",()=>fireUp());
+ window.addEventListener("blur",()=>fireUp());
+ document.addEventListener("visibilitychange",()=>{if(document.hidden)fireUp();});
+}
+const $unused=null;
 function status(message){$("menuStatus").textContent=message;}
 function paintPreview(id,hero){
  const cv=$(id),ctx=cv.getContext("2d");
@@ -168,6 +222,10 @@ function beginGame(){
    FullScreenMario.scale=1;
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
+   // The original Piranha collision tolerance was computed with unitsize=4 when
+   // settings loaded. With unitsize=2 it exceeded the plant height, so the
+   // character-above-enemy check discarded legitimate contacts.
+   FullScreenMario.prototype.settings.objects.properties.Piranha.toly=0;
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
@@ -178,16 +236,21 @@ function beginGame(){
    const keydown=fsm.InputWriter.makePipe("onkeydown","keyCode");
    const keyup=fsm.InputWriter.makePipe("onkeyup","keyCode");
    document.body.onkeydown=function(event){
+      if($("playing").hidden||/^(BUTTON|SELECT|INPUT|TEXTAREA)$/.test(event.target.tagName))return;
       if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(event.key))event.preventDefault();
       return keydown(event);
    };
-   document.body.onkeyup=function(event){return keyup(event);};
+   document.body.onkeyup=function(event){
+      if($("playing").hidden||/^(BUTTON|SELECT|INPUT|TEXTAREA)$/.test(event.target.tagName))return;
+      return keyup(event);
+   };
    $("game").onmousedown=fsm.InputWriter.makePipe("onmousedown","which");
+   // Remove the menu from layout before the timer or simulation starts.
+   $("startScreen").hidden=true;
+   $("playing").hidden=false;
    fsm.gameStart();
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
-   $("startScreen").hidden=true;
-   $("playing").hidden=false;
    if(fsm.GamesRunner.getPaused())fsm.GamesRunner.play();
    changeQuality();
    $("game").focus();
@@ -203,12 +266,14 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ fireUp();
  if(game&&!game.GamesRunner.getPaused())game.GamesRunner.pause();
  $("playing").hidden=true;
  $("startScreen").hidden=false;
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ fireUp();
  if(!game)return;
  game.setMap($("levelSelect").value||"1-1");
 }
@@ -219,6 +284,7 @@ function setup(){
  $("backToMenu").onclick=backToMenu;
  $("restart").onclick=restart;
  $("quality").onchange=changeQuality;
+ setupFireButton();
  for(let world=1;world<=8;world++)for(let stage=1;stage<=4;stage++){
   const option=document.createElement("option"),name=world+"-"+stage;
   option.value=name;option.textContent=name;$("levelSelect").appendChild(option);

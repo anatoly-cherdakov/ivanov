@@ -105,41 +105,14 @@ let face=1;
 let busy=false;
 let fireImage=null;
 const $=id=>document.getElementById(id);
-function createFireOutfits(){
- // Build the striped-shirt variant FROM the existing original sprite atlas.
- // The face, headwear, beard, hands, trousers and pose geometry stay identical.
- const cv=document.createElement("canvas");
- cv.width=heroImage.naturalWidth;cv.height=heroImage.naturalHeight;
- const context=cv.getContext("2d",{willReadFrequently:true});
- context.drawImage(heroImage,0,0);
- const image=context.getImageData(0,0,cv.width,cv.height);
- const pixels=image.data;
- const regions=[[7,57,43,68],[7,59,45,68],[7,59,45,68],[7,58,43,68],[7,59,47,70]];
- for(let row=0;row<2;row++)for(let pose=0;pose<5;pose++){
-    const [minX,maxX,minY,maxY]=regions[pose];
-    for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
-      const i=((row*96+y)*cv.width+pose*64+x)*4;
-      const r=pixels[i],g=pixels[i+1],b=pixels[i+2],a=pixels[i+3];
-      if(a<100)continue;
-      // Neutral dark jacket and blue jacket palettes, excluding skin and outlines.
-      const jacket=row===0
-         ? r>=30&&r<=123&&Math.abs(r-g)<12&&Math.abs(g-b)<17&&b>=r-2&&b<=r+22
-         : b>=80&&b>r*1.6&&b>g*1.12&&g>=23;
-      if(!jacket||pose===3&&y<49&&x<33||x<18&&y<49||x>50&&y<51)continue;
-      if(y%6<3){
-        let v=row===0?229:240;
-        v-=row===0?Math.floor(Math.max(0,65-r)*.2):(b>=140?0:25);
-        pixels[i]=v;pixels[i+1]=Math.min(255,v+2);pixels[i+2]=Math.min(255,v+7);
-      }else{
-        let v=row===0?61:67;
-        if(row===0&&r>=80)v+=10;
-        if(row===1&&b>=210)v+=6;
-        pixels[i]=Math.floor(v/3);pixels[i+1]=Math.round(v*.72);pixels[i+2]=v+35;
-      }
-    }
- }
- context.putImageData(image,0,0);
- return cv;
+function loadFireSprite(){
+ const image=new Image();
+ image.onload=function(){
+   if(image.naturalWidth===320&&image.naturalHeight===192)fireImage=image;
+   else console.error("Unexpected alternate sprite atlas size");
+ };
+ image.onerror=function(){console.error("Fire costume sprite failed to load")};
+ image.src="fire.png";
 }
 function status(message){const el=$("menuStatus");el.textContent=message;el.classList.toggle("is-error",message.startsWith("Ошибка")||message.startsWith("Не удалось"));}
 function paintPreview(id,hero){
@@ -173,10 +146,33 @@ function drawHero(ctx,thing){
  const hitWidth=thing.width*unit;
  const px=Math.round(screenX+(hitWidth-displayWidth)/2);
  const py=Math.round(screenY+thing.height*unit-displayHeight);
- ctx.save();ctx.imageSmoothingEnabled=false;
+ ctx.save();
+ ctx.imageSmoothingEnabled=false;
+ // The engine already gives temporary invulnerability and star music.
+ // Custom character drawing must also visibly display star power.
+ if(thing.star>0){
+    const colors=["#ffe95c","#75f7ff","#ffc6f7","#c5ff83"];
+    const tick=Math.floor((game.PixelDrawer.framesDrawn||0)/5);
+    ctx.shadowBlur=7;
+    ctx.shadowColor=colors[tick%colors.length];
+    ctx.filter="brightness(1.28) saturate(1.8) hue-rotate("+((tick%4)*65)+"deg)";
+ }
  if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*64,chosen*96,64,96,0,py,displayWidth,displayHeight);}
  else ctx.drawImage(sprite,pose*64,chosen*96,64,96,px,py,displayWidth,displayHeight);
  ctx.restore();
+ if(thing.star>0){
+   const tick=Math.floor((game.PixelDrawer.framesDrawn||0)/4);
+   const colors=["#ffe768","#74e5ff","#ffa6ff","#a5ffbf"];
+   ctx.save();
+   for(let i=0;i<6;i++){
+      const seed=tick*3+i*61;
+      ctx.fillStyle=colors[(tick+i)%colors.length];
+      const sx=px+((seed*7)%Math.max(3,displayWidth+10))-5;
+      const sy=py+((seed*11)%Math.max(3,displayHeight+10))-5;
+      ctx.fillRect(sx,sy,2,2);
+   }
+   ctx.restore();
+ }
 }
 function configureRenderer(fsm){
  fsm.PixelDrawer.setFramerateSkip(2);
@@ -303,7 +299,7 @@ function setup(){
   option.value=name;option.textContent=name;$("levelSelect").appendChild(option);
  }
  heroImage.onload=()=>{
-  try{fireImage=createFireOutfits();}catch(error){console.error("Failed to make fire outfit",error);fireImage=null;}
+  loadFireSprite();
   paintPreview("portrait-black",0);
   paintPreview("portrait-blue",1);
   $("startButton").disabled=chosen<0;

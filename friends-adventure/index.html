@@ -49,6 +49,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
 .duo-credit a{color:#c1d7ff}
+#startScreen[hidden],#playing[hidden]{display:none!important}
+body.game-active .duo-header{display:none!important}
 @media(max-width:565px){.duo-main{overflow-x:auto;justify-content:flex-start}.start-screen{min-width:0}#playing{min-width:512px}}
 </style></head>
 
@@ -71,12 +73,12 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
   <button id="startButton" class="primary" type="button" disabled>ИГРАТЬ</button>
  </div>
  <p id="menuStatus" class="menu-status" role="status">Выбери персонажа.</p>
- <div class="menu-help">← → или A / D — ходьба · Пробел / ↑ / W — прыжок · Shift — быстрый бег</div>
+ <div class="menu-help">← → или A / D — ходьба · Пробел / ↑ / W — прыжок · Shift / Ctrl — бег и огонь после цветка</div>
 </section>
 <div id="playing" hidden>
  <nav class="game-actions"><button id="backToMenu" type="button">☰ Сменить героя</button><button id="restart" type="button">↻ Начать уровень заново</button><label for="quality">Качество:</label><select id="quality"><option value="30" selected>30 к/с — быстро</option><option value="60">60 к/с — плавно</option><option value="20">20 к/с — экономно</option></select></nav>
  <div id="game"></div>
- <div class="duo-tip">← → — движение · Пробел / ↑ — прыжок · Shift — бег · P — пауза</div>
+ <div class="duo-tip">← → / A, D — движение · Пробел / ↑ / W — прыжок · Shift / Ctrl — бег и огонь после цветка · P — пауза</div>
 </div>
 </main>
 <footer class="duo-credit">Неофициальная некоммерческая адаптация браузерного движка <a href="https://github.com/zveronline/mario" target="_blank" rel="noopener">FullScreenMario</a>. Оригинальные персонажи, уровни, графика и музыка принадлежат Nintendo.</footer>
@@ -100,7 +102,44 @@ let game=null;
 let drawingPatched=false;
 let face=1;
 let busy=false;
+let fireImage=null;
 const $=id=>document.getElementById(id);
+function createFireOutfits(){
+ // Build the striped-shirt variant FROM the existing original sprite atlas.
+ // The face, headwear, beard, hands, trousers and pose geometry stay identical.
+ const cv=document.createElement("canvas");
+ cv.width=heroImage.naturalWidth;cv.height=heroImage.naturalHeight;
+ const context=cv.getContext("2d",{willReadFrequently:true});
+ context.drawImage(heroImage,0,0);
+ const image=context.getImageData(0,0,cv.width,cv.height);
+ const pixels=image.data;
+ const regions=[[7,57,43,68],[7,59,45,68],[7,59,45,68],[7,58,43,68],[7,59,47,70]];
+ for(let row=0;row<2;row++)for(let pose=0;pose<5;pose++){
+    const [minX,maxX,minY,maxY]=regions[pose];
+    for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
+      const i=((row*96+y)*cv.width+pose*64+x)*4;
+      const r=pixels[i],g=pixels[i+1],b=pixels[i+2],a=pixels[i+3];
+      if(a<100)continue;
+      // Neutral dark jacket and blue jacket palettes, excluding skin and outlines.
+      const jacket=row===0
+         ? r>=30&&r<=123&&Math.abs(r-g)<12&&Math.abs(g-b)<17&&b>=r-2&&b<=r+22
+         : b>=80&&b>r*1.6&&b>g*1.12&&g>=23;
+      if(!jacket||pose===3&&y<49&&x<33||x<18&&y<49||x>50&&y<51)continue;
+      if(y%6<3){
+        let v=row===0?229:240;
+        v-=row===0?Math.floor(Math.max(0,65-r)*.2):(b>=140?0:25);
+        pixels[i]=v;pixels[i+1]=Math.min(255,v+2);pixels[i+2]=Math.min(255,v+7);
+      }else{
+        let v=row===0?61:67;
+        if(row===0&&r>=80)v+=10;
+        if(row===1&&b>=210)v+=6;
+        pixels[i]=Math.floor(v/3);pixels[i+1]=Math.round(v*.72);pixels[i+2]=v+35;
+      }
+    }
+ }
+ context.putImageData(image,0,0);
+ return cv;
+}
 function status(message){$("menuStatus").textContent=message;}
 function paintPreview(id,hero){
  const cv=$(id),ctx=cv.getContext("2d");
@@ -127,14 +166,15 @@ function drawHero(ctx,thing){
  if(crouching)pose=4;
  else if(!thing.resting&&Math.abs(thing.yvel||0)>.6)pose=3;
  else if(Math.abs(thing.xvel||0)>.24)pose=1+Math.floor(game.PixelDrawer.framesDrawn/9)%2;
+ const sprite=(thing.power===3&&fireImage)?fireImage:heroImage;
  const displayHeight=(large?32:16)*(crouching?0.74:1);
  const displayWidth=Math.round(displayHeight*0.69);
  const hitWidth=thing.width*unit;
  const px=Math.round(screenX+(hitWidth-displayWidth)/2);
  const py=Math.round(screenY+thing.height*unit-displayHeight);
  ctx.save();ctx.imageSmoothingEnabled=false;
- if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(heroImage,pose*64,chosen*96,64,96,0,py,displayWidth,displayHeight);}
- else ctx.drawImage(heroImage,pose*64,chosen*96,64,96,px,py,displayWidth,displayHeight);
+ if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*64,chosen*96,64,96,0,py,displayWidth,displayHeight);}
+ else ctx.drawImage(sprite,pose*64,chosen*96,64,96,px,py,displayWidth,displayHeight);
  ctx.restore();
 }
 function configureRenderer(fsm){
@@ -168,6 +208,14 @@ function beginGame(){
    FullScreenMario.scale=1;
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
+   // The plant's old collision tolerance (4*8=32px) exceeded its height
+   // after reducing unitsize to 2. The old test incorrectly ignored a hit.
+   FullScreenMario.prototype.settings.objects.properties.Piranha.toly=0;
+   // Remove the title card and instruction lettering EMBEDDED in level 1-1.
+   // Everything else on the original map, including bricks/pipes/enemies, remains.
+   const startArea=FullScreenMario.prototype.settings.maps.library["1-1"].areas[0];
+   startArea.creation=startArea.creation.filter(entry=>
+     !["DecorativeBack","DecorativeDot","CustomText"].includes(entry.thing));
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
@@ -183,11 +231,13 @@ function beginGame(){
    };
    document.body.onkeyup=function(event){return keyup(event);};
    $("game").onmousedown=fsm.InputWriter.makePipe("onmousedown","which");
+   // Show only the game before any simulation/time starts.
+   $("startScreen").hidden=true;
+   $("playing").hidden=false;
+   document.body.classList.add("game-active");
    fsm.gameStart();
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
-   $("startScreen").hidden=true;
-   $("playing").hidden=false;
    if(fsm.GamesRunner.getPaused())fsm.GamesRunner.play();
    changeQuality();
    $("game").focus();
@@ -196,6 +246,7 @@ function beginGame(){
    status("Ошибка запуска: "+String(err&&err.message||err));
    $("startScreen").hidden=false;
    $("playing").hidden=true;
+   document.body.classList.remove("game-active");
   } finally {
    busy=false;
    $("startButton").disabled=chosen<0;
@@ -206,6 +257,7 @@ function backToMenu(){
  if(game&&!game.GamesRunner.getPaused())game.GamesRunner.pause();
  $("playing").hidden=true;
  $("startScreen").hidden=false;
+ document.body.classList.remove("game-active");
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
@@ -224,6 +276,7 @@ function setup(){
   option.value=name;option.textContent=name;$("levelSelect").appendChild(option);
  }
  heroImage.onload=()=>{
+  try{fireImage=createFireOutfits();}catch(error){console.error("Failed to make fire outfit",error);fireImage=null;}
   paintPreview("portrait-black",0);
   paintPreview("portrait-blue",1);
   $("startButton").disabled=chosen<0;

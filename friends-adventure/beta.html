@@ -22,12 +22,12 @@ body{background:#090e1d;color:#fff;font-family:Arial,sans-serif;max-width:1250px
 #game{margin:0 auto}
 #controls{margin:0 auto}
 .duo-tip{text-align:center;color:#bccde9;padding:12px;font-size:13px}
-</style></head>
+.duo-credit{font-size:11px;text-align:center;color:#8190af;padding:10px}.duo-credit a{color:#cbd5fa}</style></head>
 
     <body>
         
 <header class="duo-header">
-  <div><strong>ДВА ДРУГА · 8-БИТ</strong><small>Оригинальные 32 уровня • грибы • секретные комнаты • боссы</small></div>
+  <div><strong>ДВА ДРУГА · 8-БИТ</strong><small>32 классических уровня • грибы роста • подземелья • замки</small></div>
   <div class="duo-actions">
     <button id="choose-black" class="hero-btn" type="button">◼ Герой в чёрном</button>
     <button id="choose-blue" class="hero-btn" type="button">🟦 Герой в синем</button>
@@ -44,6 +44,7 @@ body{background:#090e1d;color:#fff;font-family:Arial,sans-serif;max-width:1250px
         </section>
 
         <div class="duo-tip">← → — движение · ↑ или пробел — прыжок · Shift — бег · P — пауза. Выбрать уровень можно в меню <b>Maps</b>.</div>
+<footer class="duo-credit">Неофициальная некоммерческая адаптация <a href="https://github.com/zveronline/mario" target="_blank" rel="noopener">FullScreenMario</a> (CC BY-NC-SA). Оригинальная Super Mario Bros., её графика и музыка принадлежат Nintendo.</footer>
 <!-- build:js FullScreenMario.min.js -->
         <script src="https://cdn.jsdelivr.net/gh/zveronline/mario@main/GameStartr/EightBittr/EightBittr.js"></script>
         <script src="https://cdn.jsdelivr.net/gh/zveronline/mario@main/GameStartr/GameStartr.js"></script>
@@ -144,6 +145,11 @@ function boot(){
    fillCharacter(c.Luigi,swap?0:1,img,[]);
    FullScreenMario.prototype.settings.audio.directory=CDN+'Sounds';
    FullScreenMario.prototype.settings.ui.sizeDefault='NES';
+   const schemas=FullScreenMario.prototype.settings.ui.schemas;
+   FullScreenMario.prototype.settings.ui.schemas=schemas.filter(s=>s.title!=='Editor'&&s.title!=='Mods!');
+   const maps=FullScreenMario.prototype.settings.ui.schemas.find(s=>s.title==='Maps');
+   if(maps){maps.extras={};}
+   
    window.UserWrapper=new UserWrappr(FullScreenMario.prototype.proliferate({GameStartrConstructor:FullScreenMario},FullScreenMario.prototype.settings.ui,true));
    document.getElementById('choose-black').classList.toggle('active',!swap);
    document.getElementById('choose-blue').classList.toggle('active',swap);

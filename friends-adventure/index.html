@@ -209,9 +209,35 @@ function beginGame(){
    FullScreenMario.scale=1;
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
-   // The plant's old collision tolerance (4*8=32px) exceeded its height
-   // after reducing unitsize to 2. The old test incorrectly ignored a hit.
-   FullScreenMario.prototype.settings.objects.properties.Piranha.toly=0;
+   // Plants hurt only when their actual visible part above the pipe touches
+   // the character. They never hurt while hidden inside the pipe.
+   const piranhaSettings=FullScreenMario.prototype.settings.objects.properties.Piranha;
+   piranhaSettings.toly=0;
+   if(!piranhaSettings._exposedCollisionFixed){
+      piranhaSettings._exposedCollisionFixed=true;
+      const nativeSpawn=piranhaSettings.onThingAdded;
+      piranhaSettings.onThingAdded=function(plant){
+         nativeSpawn(plant);
+         if(plant.onPipe)plant._pipeRim=plant.bottom;
+      };
+      const nativeHit=piranhaSettings.collide||FullScreenMario.prototype.collideEnemy;
+      piranhaSettings.collide=function(a,b){
+         const plant=a&&a.title==="Piranha"?a:(b&&b.title==="Piranha"?b:null);
+         const hero=a&&a.player?a:(b&&b.player?b:null);
+         if(plant&&hero&&plant.onPipe){
+            const rim=Number.isFinite(plant._pipeRim)?plant._pipeRim:plant.bottom;
+            const exposedBottom=Math.min(rim,plant.bottom);
+            const exposedTop=plant.top;
+            const epsilon=0.01;
+            if(exposedBottom-exposedTop<=epsilon
+               || hero.right-plant.left<=epsilon
+               || plant.right-hero.left<=epsilon
+               || hero.bottom-exposedTop<=epsilon
+               || exposedBottom-hero.top<=epsilon) return;
+         }
+         return nativeHit.call(this,a,b);
+      };
+   }
    // Remove the title card and instruction lettering EMBEDDED in level 1-1.
    // Everything else on the original map, including bricks/pipes/enemies, remains.
    const startArea=FullScreenMario.prototype.settings.maps.library["1-1"].areas[0];

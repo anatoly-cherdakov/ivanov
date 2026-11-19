@@ -595,6 +595,52 @@ function cheatKeyboardAction(event){
  if(code==="ArrowLeft"||code==="KeyA"||code==="a"||code==="A"||num===37||num===65)return "Left";
  return null;
 }
+// The engine ordinarily kills players beneath MapScreener.bottom. When the
+// secret cheat blocks that death, players instead used to fall forever.
+// Keep a cheat-protected player at a visible depth inside the pit, where
+// jumping and steering toward the nearest platform can bring them ashore.
+function pitRescueBounds(fsm){
+ const screen=fsm.MapScreener,unit=fsm.unitsize||2;
+ const ground=Number.isFinite(screen.floor)?screen.floor*unit:screen.bottom-unit*12;
+ return {ground,bottom:Math.min(screen.bottom-unit*2,ground+unit*6)};
+}
+function canRescueFromPit(fsm,player){
+ if(!cheatInvulnerable||!fsm||game!==fsm||!player||player!==fsm.player
+    ||!player.alive||player.dead||player.dying||player.piping
+    ||player.resting||fsm.MapScreener.underwater
+    ||fsm.MapsHandler.getArea().exit)return false;
+ const {ground}=pitRescueBounds(fsm);
+ return Number.isFinite(player.bottom)&&player.bottom>ground+(fsm.unitsize||2)*2;
+}
+function keepPitPlayerInView(fsm){
+ const player=fsm.player;
+ if(!canRescueFromPit(fsm,player)||player.yvel<0)return;
+ const {bottom}=pitRescueBounds(fsm);
+ if(player.bottom>=bottom){
+   fsm.setBottom(player,bottom);
+   player.yvel=0; // Stop descent, preserve left/right movement.
+ }
+}
+function pitRescueJump(){
+ const fsm=game,player=fsm&&fsm.player;
+ if(!canRescueFromPit(fsm,player))return false;
+ const screen=fsm.MapScreener;
+ // One deliberate jump launches the player from below the ledge.
+ player.yvel=Math.min(screen.maxyvelinv||-7,-(fsm.unitsize||2)*3.5);
+ player.keys.jump=1;
+ player.keys.jumplev=0;
+ player.keys.up=true;
+ player.canjump=false;
+ player.jumping=true;
+ return true;
+}
+function installPitRescue(fsm){
+ const nativeMaintain=fsm.maintainPlayer;
+ fsm.maintainPlayer=function(){
+   keepPitPlayerInView(fsm);
+   return nativeMaintain.apply(this,arguments);
+ };
+}
 function installKuznechikDamageRule(){
  const klass=FullScreenMario.prototype;
  if(klass._kuznechikDamageInstalled)return;
@@ -721,6 +767,7 @@ function padPress(action,token){
  if(holders.size===0){
    // Do not count automatic A Turbo repeats as separate jump presses.
    if(!token.startsWith("a-turbo:"))recordCheatInput(action);
+   if(action==="Up")pitRescueJump();
    padSignal(action,true);
  }
  holders.add(token);
@@ -930,6 +977,7 @@ function beginGame(){
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
+   installPitRescue(fsm);
    // Synchronize the visible control also when the engine pauses externally.
    const runner=fsm.GamesRunner;
    const nativePauseHook=runner.onPause, nativePlayHook=runner.onPlay;
@@ -989,6 +1037,7 @@ function beginGame(){
       if(cheatAction&&!event.repeat&&!cheatKeysHeld.has(cheatAction)){
         cheatKeysHeld.add(cheatAction);
         recordCheatInput(cheatAction);
+        if(cheatAction==="Up")pitRescueJump();
       }
       if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(event.key))event.preventDefault();
       return keydown(event);

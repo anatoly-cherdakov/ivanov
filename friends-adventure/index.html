@@ -162,7 +162,7 @@ body.game-active .duo-header{display:none!important}
         <script src="engine-02.js"></script>
         <script src="engine-03.js"></script>
         <script src="engine-04.js?v=f5d3e91b"></script>
-        <script src="engine-05.js"></script>
+        <script src="engine-05.js?v=e6f502f3"></script>
         <script src="engine-06.js?v=5a6b36dc"></script>
 <!-- /build -->
 
@@ -442,6 +442,29 @@ function installLocalizedEndings(){
      if(game===instance&&!$("playing").hidden)showEndingNext(!isToad);
    },280);
    return originalNPC.call(this,player,detector);
+ };
+}
+// Castle mazes (4-4 and 7-4) intentionally repeat sections when their
+// hidden route check fails. Keep that puzzle in normal play; while the
+// invulnerability cheat is enabled, choose the forward branch instead
+// so an invulnerable hero cannot be trapped in an endless repetition.
+function installCheatMazeBypass(){
+ const macros=FullScreenMario.prototype.settings.maps.macros;
+ if(!macros||macros._friendsCheatMazeBypassInstalled||
+    typeof macros.SectionDecider!=="function")return;
+ macros._friendsCheatMazeBypassInstalled=true;
+ const originalDecider=macros.SectionDecider;
+ macros.SectionDecider=function(){
+   const section=originalDecider.apply(this,arguments);
+   if(section&&typeof section.activate==="function"){
+     const originalActivate=section.activate;
+     section.activate=function(detector){
+       if(cheatInvulnerable&&game&&detector&&detector.EightBitter===game)
+         detector.EightBitter.MapScreener.sectionPassed=true;
+       return originalActivate.apply(this,arguments);
+     };
+   }
+   return section;
  };
 }
 function displayCover(){
@@ -983,6 +1006,7 @@ function beginGame(){
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
    installLocalizedEndings();
+   installCheatMazeBypass();
    installKuznechikFlowerRule();
    installKuznechikDamageRule();
    // Plants hurt only when their actual visible part above the pipe touches

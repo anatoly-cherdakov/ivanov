@@ -52,7 +52,7 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  pointer-events:none;image-rendering:pixelated!important;
 }
 .ending-thanks[hidden]{display:none!important}
-#grasshopperSpeech,#lavaSpeech{
+#grasshopperSpeech,#lavaSpeech,#cheatSpeech{
  position:absolute;z-index:110;left:50%;top:50%;
  transform:translate(-50%,-50%);max-width:98%;
  padding:0;margin:0;border:0;border-radius:0;
@@ -63,8 +63,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  color:#fff;text-align:center;text-shadow:1px 1px 0 #000;
  pointer-events:none
 }
-#grasshopperSpeech[hidden],#lavaSpeech[hidden]{display:none!important}
-#lavaSpeech{width:96%;max-width:96%;white-space:normal;line-height:1.6}
+#grasshopperSpeech[hidden],#lavaSpeech[hidden],#cheatSpeech[hidden]{display:none!important}
+#lavaSpeech,#cheatSpeech{width:96%;max-width:96%;white-space:normal;line-height:1.6}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
@@ -182,6 +182,9 @@ let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
 let roerichBossImage=null,lavaSpeechSerial=0;
+// Down -> Jump -> Left, repeated ten times, grants lasting immunity.
+let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
+const cheatKeysHeld=new Set();
 let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
 const $=id=>document.getElementById(id);
@@ -553,12 +556,55 @@ function activateKuznechik(player){
    }
  },480);
 }
+function resetCheat(){
+ cheatStep=0;cheatGroups=0;cheatInvulnerable=false;
+ cheatKeysHeld.clear();cheatNoticeSerial++;
+ const el=$("cheatSpeech");if(el)el.hidden=true;
+}
+function showCheatNotice(){
+ const el=$("cheatSpeech");if(!el||!game)return;
+ el.textContent="НЕУЯЗВИМОСТЬ!";
+ el.hidden=false;
+ const session=game,serial=++cheatNoticeSerial;
+ // Only the notice expires; immunity has no time limit.
+ session.TimeHandler.addEvent(()=>{
+   if(game===session&&serial===cheatNoticeSerial)el.hidden=true;
+ },180);
+}
+function recordCheatInput(action){
+ if(cheatInvulnerable||!game||!game.player||$("playing").hidden
+    ||!game.GamesRunner||game.GamesRunner.getPaused())return;
+ const pattern=["Down","Up","Left"];
+ if(action===pattern[cheatStep]){
+   if(++cheatStep===3){
+     cheatStep=0;
+     if(++cheatGroups===10){
+       cheatInvulnerable=true;
+       showCheatNotice();
+     }
+   }
+ }else{
+   // An out-of-order key cancels the streak; Down may start a new one.
+   cheatGroups=0;cheatStep=action==="Down"?1:0;
+ }
+}
+function cheatKeyboardAction(event){
+ const code=event.code||event.key||"",num=event.keyCode||event.which;
+ if(code==="ArrowDown"||code==="KeyS"||code==="s"||code==="S"||num===40||num===83)return "Down";
+ if(code==="ArrowUp"||code==="KeyW"||code==="Space"||code==="w"||code==="W"||code===" "||num===38||num===87||num===32)return "Up";
+ if(code==="ArrowLeft"||code==="KeyA"||code==="a"||code==="A"||num===37||num===65)return "Left";
+ return null;
+}
 function installKuznechikDamageRule(){
  const klass=FullScreenMario.prototype;
  if(klass._kuznechikDamageInstalled)return;
  klass._kuznechikDamageInstalled=true;
  const nativeDamage=klass.killPlayer;
  const onDamage=function(player,big){
+   // Permanent cheat protects both normal and fatal damage. This global flag
+   // also applies when the engine creates another Player at a new level.
+   if(cheatInvulnerable&&game&&player===game.player
+      &&player.player&&player.EightBitter===game)return;
    // Engine ignores hits during its invulnerable flicker/death animation.
    // Only accepted damage should remove the pogo-stick bonus.
    if(game&&player===game.player&&player.EightBitter===game
@@ -672,7 +718,11 @@ function padSignal(action,pressed){
 function padPress(action,token){
  const holders=padHeld[action];
  if(!holders||holders.has(token)||!padReady())return;
- if(holders.size===0)padSignal(action,true);
+ if(holders.size===0){
+   // Do not count automatic A Turbo repeats as separate jump presses.
+   if(!token.startsWith("a-turbo:"))recordCheatInput(action);
+   padSignal(action,true);
+ }
  holders.add(token);
 }
 function padRelease(action,token){
@@ -832,6 +882,7 @@ function beginGame(){
    game=null;
    hideLavaSpeech();
    resetKuznechik();
+   resetCheat();
    pauseKeyHeld=false;
    face=1;
    // Render 256x232 internally and scale once with CSS: 4x fewer pixels than the old 512x464 canvas.
@@ -915,6 +966,11 @@ function beginGame(){
    lavaCaption.hidden=true;
    lavaCaption.setAttribute("role","status");
    $("game").appendChild(lavaCaption);
+   const cheatCaption=document.createElement("div");
+   cheatCaption.id="cheatSpeech";
+   cheatCaption.textContent="НЕУЯЗВИМОСТЬ!";
+   cheatCaption.hidden=true;cheatCaption.setAttribute("role","status");
+   $("game").appendChild(cheatCaption);
    // Keep Kuznechik across level/map changes until the hero takes damage.
    // The original setMap implementation is not modified.
    // Clear the ending caption when the engine travels to another location.
@@ -929,10 +985,19 @@ function beginGame(){
    const keydown=fsm.InputWriter.makePipe("onkeydown","keyCode");
    const keyup=fsm.InputWriter.makePipe("onkeyup","keyCode");
    document.body.onkeydown=function(event){
+      const cheatAction=cheatKeyboardAction(event);
+      if(cheatAction&&!event.repeat&&!cheatKeysHeld.has(cheatAction)){
+        cheatKeysHeld.add(cheatAction);
+        recordCheatInput(cheatAction);
+      }
       if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(event.key))event.preventDefault();
       return keydown(event);
    };
-   document.body.onkeyup=function(event){return keyup(event);};
+   document.body.onkeyup=function(event){
+      const cheatAction=cheatKeyboardAction(event);
+      if(cheatAction)cheatKeysHeld.delete(cheatAction);
+      return keyup(event);
+   };
    $("game").onmousedown=fsm.InputWriter.makePipe("onmousedown","which");
    // Show only the game before any simulation/time starts.
    $("startScreen").hidden=true;
@@ -961,6 +1026,7 @@ function beginGame(){
 function backToMenu(){
  hideLavaSpeech();
  resetKuznechik();
+ resetCheat();
  pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();
@@ -973,6 +1039,7 @@ function backToMenu(){
 function restart(){
  hideLavaSpeech();
  resetKuznechik();
+ resetCheat();
  pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();
@@ -984,7 +1051,9 @@ function restart(){
 function setup(){
  document.addEventListener("keydown",pauseKeyDown,true);
  document.addEventListener("keyup",pauseKeyUp,true);
- window.addEventListener("blur",()=>{pauseKeyHeld=false;});
+ window.addEventListener("blur",()=>{
+   pauseKeyHeld=false;cheatKeysHeld.clear();
+ });
  loadEndingArt();
  loadRoerichBoss();
  setupMobileController();

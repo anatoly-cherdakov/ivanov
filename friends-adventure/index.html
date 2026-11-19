@@ -157,7 +157,7 @@ body.game-active .duo-header{display:none!important}
 <!-- /build -->
 
         <!-- build:js index.min.js -->
-        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=1b6d886e"></script>
+        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=a25407c0"></script>
 <script id="duo-app">
 (function(){
 "use strict";
@@ -230,9 +230,8 @@ function drawEndingThing(ctx,thing){
  const y=game.PixelDrawer.getTop(thing);
  let width=thing.width*unit, height=thing.height*unit;
  if(kind==="star"){
-   // Draw the redesigned Vietnamese balm tin at its native size.
-   // Keep all original Star pickup physics and invulnerability timing.
-   width=asset.width;height=asset.height;
+   // Original 7x8 game-unit collectible size: no visual enlargement.
+   width=thing.width*unit;height=thing.height*unit;
  }else{
    // Rescued characters keep their collision bounds and position.
    height=Math.max(height,28);
@@ -243,15 +242,7 @@ function drawEndingThing(ctx,thing){
  const py=Math.round(y+(thing.height*unit-height)/2);
  ctx.save();
  ctx.imageSmoothingEnabled=false;
- if(kind==="star"){
-   // Pixel-style outline and gentle oscillating glow without blur.
-   const t=(game.PixelDrawer.framesDrawn||0)%24;
-   ctx.globalAlpha=(t<12?.7:.9);
-   ctx.fillStyle="#ffdf51";
-   ctx.fillRect(px-1,py+4,2,height-8);
-   ctx.fillRect(px+width-1,py+4,2,height-8);
-   ctx.globalAlpha=1;
- }
+ // No drawn side bars, halos, or additional rings around the collectible.
  ctx.drawImage(asset,px,py,width,height);
  ctx.restore();
  return true;

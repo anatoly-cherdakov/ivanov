@@ -240,8 +240,9 @@ function drawEndingThing(ctx,thing){
    height=Math.max(height,28);
    width=Math.round(height*asset.width/asset.height);
  }
- const px=Math.round(x+(thing.width*unit-width-width)/2);
- const py=Math.round(y+(thing.height*unit-height)/2-height/2);
+ // Center artwork on the item's original collision box without changing physics.
+ const px=Math.round(x+(thing.width*unit-width)/2);
+ const py=Math.round(y+(thing.height*unit-height)/2);
  ctx.save();
  ctx.imageSmoothingEnabled=false;
  if(kind==="star"){

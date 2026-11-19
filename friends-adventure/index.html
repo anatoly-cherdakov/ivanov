@@ -345,8 +345,9 @@ function padTurboShoot(player){
  if(player.power!==3||player.crouching||player.dying||player.dead
     ||typeof player.fire!=="function")return;
  const count=Math.max(0,Number(player.numballs)||0);
- // Six projectiles is the Turbo-only ceiling; regular B still uses two.
- if(count>=6)return;
+ // Keep enough projectiles moving that held Turbo doesn't stall mid-screen.
+ // Normal B still uses the original two-ball ceiling.
+ if(count>=20)return;
  if(count<2){player.fire(player);return;}
  // The upstream fire routine has a hard-coded two-ball guard.
  // Temporarily bypass that guard for this single Turbo shot, while

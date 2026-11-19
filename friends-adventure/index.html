@@ -625,7 +625,9 @@ function cheatKeyboardAction(event){
 // The engine ordinarily kills players beneath MapScreener.bottom. When the
 // secret cheat blocks that death, players instead used to fall forever.
 // Keep a cheat-protected player at a visible depth inside the pit, where
-// jumping and steering toward the nearest platform can bring them ashore.
+// jumping/swimming upward and steering toward the nearest ledge can get them
+// back to safety. This also applies to underwater maps, which previously
+// bypassed the rescue entirely and let the invulnerable hero fall forever.
 function pitRescueBounds(fsm){
  const screen=fsm.MapScreener,unit=fsm.unitsize||2;
  const ground=Number.isFinite(screen.floor)?screen.floor*unit:screen.bottom-unit*12;
@@ -634,7 +636,7 @@ function pitRescueBounds(fsm){
 function canRescueFromPit(fsm,player){
  if(!cheatInvulnerable||!fsm||game!==fsm||!player||player!==fsm.player
     ||!player.alive||player.dead||player.dying||player.piping
-    ||player.resting||fsm.MapScreener.underwater
+    ||player.resting
     ||fsm.MapsHandler.getArea().exit)return false;
  const {ground}=pitRescueBounds(fsm);
  return Number.isFinite(player.bottom)&&player.bottom>ground+(fsm.unitsize||2)*2;
@@ -652,7 +654,8 @@ function pitRescueJump(){
  const fsm=game,player=fsm&&fsm.player;
  if(!canRescueFromPit(fsm,player))return false;
  const screen=fsm.MapScreener;
- // One deliberate jump launches the player from below the ledge.
+ // A deliberate jump/swim stroke launches the player above the pit floor.
+ // The engine's normal underwater paddling resumes after this initial boost.
  player.yvel=Math.min(screen.maxyvelinv||-7,-(fsm.unitsize||2)*3.5);
  player.keys.jump=1;
  player.keys.jumplev=0;

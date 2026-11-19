@@ -413,12 +413,27 @@ function activateKuznechik(player){
  kuznechikActive=true;
  const label=$("grasshopperSpeech");
  if(label){label.textContent="Я могу и 10 грамм";label.hidden=false;}
- const sourceGame=game,serial=++kuznechikSerial;
- sourceGame.TimeHandler.addEvent(()=>{
-   if(game!==sourceGame||serial!==kuznechikSerial)return;
-   kuznechikActive=false;
-   if(label)label.hidden=true;
- },480);
+ // Persistent until the player's NEXT ACTUAL DAMAGE, not a time limit.
+ // Gameplay pause, map transitions and collecting other items do not end it.
+}
+function installKuznechikDamageRule(){
+ const klass=FullScreenMario.prototype;
+ if(klass._kuznechikDamageInstalled)return;
+ klass._kuznechikDamageInstalled=true;
+ const nativeDamage=klass.killPlayer;
+ const onDamage=function(player,big){
+   // Engine ignores hits during its invulnerable flicker/death animation.
+   // Only accepted damage should remove the pogo-stick bonus.
+   if(game&&player===game.player&&player.EightBitter===game
+      &&player.alive&&!player.flickering&&!player.dying){
+      resetKuznechik();
+   }
+   return nativeDamage.call(this,player,big);
+ };
+ klass.killPlayer=onDamage;
+ // Both direct game.killPlayer() calls and the Player's Thing.death()
+ // property must go through the same damage handler.
+ klass.settings.objects.properties.Player.death=onDamage;
 }
 function installKuznechikFlowerRule(){
  const items=FullScreenMario.prototype.settings.objects.properties;
@@ -682,6 +697,7 @@ function beginGame(){
    FullScreenMario.prototype.settings.sprites.scale=1;
    installLocalizedEndings();
    installKuznechikFlowerRule();
+   installKuznechikDamageRule();
    // Plants hurt only when their actual visible part above the pipe touches
    // the character. They never hurt while hidden inside the pipe.
    const piranhaSettings=FullScreenMario.prototype.settings.objects.properties.Piranha;
@@ -746,12 +762,8 @@ function beginGame(){
    pogoCaption.textContent="Я могу и 10 грамм";
    pogoCaption.hidden=true;
    $("game").appendChild(pogoCaption);
-   // Reset the streak when entering any new level.
-   const nativeSetMap=fsm.setMap;
-   fsm.setMap=function(){
-     resetKuznechik();
-     return nativeSetMap.apply(this,arguments);
-   };
+   // Keep Kuznechik across level/map changes until the hero takes damage.
+   // The original setMap implementation is not modified.
    // Clear the ending caption when the engine travels to another location.
    const nativeLocation=fsm.setLocation;
    fsm.setLocation=function(){

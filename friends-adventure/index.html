@@ -126,7 +126,7 @@ body.game-active .duo-header{display:none!important}
  <div class="menu-help">← → или A / D — ходьба · Пробел / ↑ / W — прыжок · Shift / Ctrl — бег и огонь после цветка</div>
 </section>
 <div id="playing" hidden>
- <nav class="game-actions"><button id="backToMenu" type="button">☰ Сменить героя</button><button id="restart" type="button">↻ Начать уровень заново</button><label for="quality">Качество:</label><select id="quality"><option value="30" selected>30 к/с — быстро</option><option value="60">60 к/с — плавно</option><option value="20">20 к/с — экономно</option></select></nav>
+ <nav class="game-actions"><button id="backToMenu" type="button">☰ Сменить героя</button><button id="restart" type="button">↻ Начать уровень заново</button><button id="pauseButton" type="button" aria-pressed="false">⏸ Пауза</button><label for="quality">Качество:</label><select id="quality"><option value="30" selected>30 к/с — быстро</option><option value="60">60 к/с — плавно</option><option value="20">20 к/с — экономно</option></select></nav>
  <div id="game"></div>
  <section id="mobileController" class="mobile-controller" aria-label="Сенсорный геймпад Dendy">
   <div class="mobile-actions" aria-label="Кнопки действий">
@@ -166,6 +166,7 @@ const heroImage=new Image();
 let chosen=-1;
 let game=null;
 let drawingPatched=false;
+let pauseKeyHeld=false;
 let face=1;
 let busy=false;
 let fireImage=null;
@@ -522,6 +523,41 @@ function setupMobileController(){
  window.addEventListener("blur",padStopAll);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)padStopAll()});
 }
+// The engine delays a pause by seven ticks and unpauses on key-up. A quick
+// press can fire key-up first and then freeze the game after the delay.
+// Capture P and switch state once per distinct key press.
+function isPauseKey(event){
+ return event.code==="KeyP" || event.key==="p" || event.key==="P" || event.keyCode===80;
+}
+function syncPauseButton(){
+ const button=$("pauseButton");
+ if(!button)return;
+ const paused=!!(game&&game.GamesRunner&&game.GamesRunner.getPaused());
+ button.textContent=paused?"▶ Продолжить":"⏸ Пауза";
+ button.setAttribute("aria-pressed",String(paused));
+}
+function toggleGamePause(){
+ if(!game||!game.GamesRunner||$("playing").hidden)return;
+ if(game.GamesRunner.getPaused())game.GamesRunner.play();
+ else {padStopAll();game.GamesRunner.pause();}
+ syncPauseButton();
+}
+function pauseKeyDown(event){
+ if(!isPauseKey(event)||!game)return;
+ // Prevent the original engine's delayed pause from also firing.
+ event.preventDefault();
+ event.stopPropagation();
+ if($("playing").hidden||pauseKeyHeld)return;
+ pauseKeyHeld=true;
+ toggleGamePause();
+}
+function pauseKeyUp(event){
+ if(!isPauseKey(event))return;
+ pauseKeyHeld=false;
+ if(!game)return;
+ event.preventDefault();
+ event.stopPropagation();
+}
 function beginGame(){
  if(busy||chosen<0||!heroImage.complete||!heroImage.naturalWidth)return;
  busy=true;
@@ -534,6 +570,7 @@ function beginGame(){
    padStopAll();
    if(game){try{game.GamesRunner.pause();}catch(_){}}
    game=null;
+   pauseKeyHeld=false;
    face=1;
    // Render 256x232 internally and scale once with CSS: 4x fewer pixels than the old 512x464 canvas.
    FullScreenMario.unitsize=2;
@@ -578,6 +615,20 @@ function beginGame(){
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
+   // Synchronize the visible control also when the engine pauses externally.
+   const runner=fsm.GamesRunner;
+   const nativePauseHook=runner.onPause, nativePlayHook=runner.onPlay;
+   runner.onPause=function(){
+     const result=typeof nativePauseHook==="function" ? nativePauseHook.apply(this,arguments) : undefined;
+     padStopAll();
+     syncPauseButton();
+     return result;
+   };
+   runner.onPlay=function(){
+     const result=typeof nativePlayHook==="function" ? nativePlayHook.apply(this,arguments) : undefined;
+     syncPauseButton();
+     return result;
+   };
    $("game").textContent="";
    $("game").appendChild(fsm.container);
    const endingMessage=document.createElement("div");
@@ -611,6 +662,7 @@ function beginGame(){
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
    if(fsm.GamesRunner.getPaused())fsm.GamesRunner.play();
+   syncPauseButton();
    changeQuality();
    $("game").focus();
   } catch(err) {
@@ -626,6 +678,7 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();
  if(game&&!game.GamesRunner.getPaused())game.GamesRunner.pause();
@@ -635,12 +688,18 @@ function backToMenu(){
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();
  if(!game)return;
  game.setMap($("levelSelect").value||"1-1");
+ if(game.GamesRunner.getPaused())game.GamesRunner.play();
+ syncPauseButton();
 }
 function setup(){
+ document.addEventListener("keydown",pauseKeyDown,true);
+ document.addEventListener("keyup",pauseKeyUp,true);
+ window.addEventListener("blur",()=>{pauseKeyHeld=false;});
  loadEndingArt();
  setupMobileController();
  if(typeof ResizeObserver==="function"){
@@ -655,6 +714,7 @@ function setup(){
  $("startButton").onclick=beginGame;
  $("backToMenu").onclick=backToMenu;
  $("restart").onclick=restart;
+ $("pauseButton").onclick=toggleGamePause;
  $("quality").onchange=changeQuality;
  for(let world=1;world<=8;world++)for(let stage=1;stage<=4;stage++){
   const option=document.createElement("option"),name=world+"-"+stage;

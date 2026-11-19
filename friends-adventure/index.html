@@ -335,16 +335,34 @@ function padStopAll(){
  }
 }
 /*
- * Turbo follows the actual game actions, not a fixed 90ms key toggle:
- * A TURBO: sustain a jump long enough to rise, release, then jump again
- *          automatically on every landing while a finger is still down.
- * B TURBO: continuously hold sprint; shoot again every 160ms with fire power.
- * Both loops only exist while their pointer is active.
+ * Turbo buttons repeat as long as a finger is held.
+ * A Turbo: short jumps, repeated immediately upon landing (no fixed long delay).
+ * B Turbo: keep sprint held and spawn rapid fireballs, with a Turbo-only
+ *           projectile limit (normal B retains the original two-ball rule).
+ * Both loops stop when the finger is released, even during multitouch.
  */
+function padTurboShoot(player){
+ if(player.power!==3||player.crouching||player.dying||player.dead
+    ||typeof player.fire!=="function")return;
+ const count=Math.max(0,Number(player.numballs)||0);
+ // Six projectiles is the Turbo-only ceiling; regular B still uses two.
+ if(count>=6)return;
+ if(count<2){player.fire(player);return;}
+ // The upstream fire routine has a hard-coded two-ball guard.
+ // Temporarily bypass that guard for this single Turbo shot, while
+ // preserving the true count for onDelete callbacks and collision physics.
+ player.numballs=1;
+ try{
+   player.fire(player);
+ }finally{
+   player.numballs=count+1;
+ }
+}
 function padTurboTick(state){
  if(!padPointers.has(state.pointerId))return;
  if(!padReady()){padStopPointer(state.pointerId);return;}
  const player=game.player,now=Date.now();
+ if(!player.alive||player.dead||player.dying)return;
  if(state.name==="a-turbo"){
    if(state.jumpHeld){
      if(now>=state.jumpReleaseAt){
@@ -355,18 +373,15 @@ function padTurboTick(state){
       && (player.resting || game.MapScreener.underwater)){
      padPress("Up",state.token);
      state.jumpHeld=true;
-     state.jumpReleaseAt=now+235;
-     state.nextJumpAt=now+265;
+     // Short tap for low, frequent jumps; landings may take longer naturally.
+     state.jumpReleaseAt=now+90;
+     state.nextJumpAt=now+105;
    }
  }else if(state.name==="b-turbo"){
-   // Don't send a key-up while held: keeping sprint engaged also gives
-   // continuous running, even when no flower has been collected.
+   // Sprint is pressed continuously for as long as B Turbo is held.
    if(now>=state.nextFireAt){
-     if(player.power===3 && !player.crouching && !player.dying
-        && typeof player.fire==="function"){
-       player.fire(player);
-     }
-     state.nextFireAt=now+160;
+     padTurboShoot(player);
+     state.nextFireAt=now+85;
    }
  }
 }
@@ -384,15 +399,15 @@ function setupMobileController(){
      const now=Date.now();
      const state={
        action,token,button,pointerId:event.pointerId,name,timer:null,
-       jumpHeld:name==="a-turbo",jumpReleaseAt:now+235,
-       nextJumpAt:now+265,nextFireAt:now+160
+       jumpHeld:name==="a-turbo",jumpReleaseAt:now+90,
+       nextJumpAt:now+105,nextFireAt:now+85
      };
      padPointers.set(event.pointerId,state);
      button.classList.add("is-held");
      try{button.setPointerCapture(event.pointerId)}catch(_){}
      padPress(action,token);
      if(name.endsWith("-turbo")){
-       state.timer=setInterval(()=>padTurboTick(state),32);
+       state.timer=setInterval(()=>padTurboTick(state),16);
      }
    });
    button.addEventListener("pointerup",event=>{event.preventDefault();padStopPointer(event.pointerId)});

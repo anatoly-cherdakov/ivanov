@@ -647,16 +647,24 @@ function installKuznechikDamageRule(){
  klass._kuznechikDamageInstalled=true;
  const nativeDamage=klass.killPlayer;
  const onDamage=function(player,big){
-   // Permanent cheat protects both normal and fatal damage. This global flag
-   // also applies when the engine creates another Player at a new level.
+   // The permanent invulnerability cheat takes priority over all damage.
    if(cheatInvulnerable&&game&&player===game.player
       &&player.player&&player.EightBitter===game)return;
-   // Engine ignores hits during its invulnerable flicker/death animation.
-   // Only accepted damage should remove the pogo-stick bonus.
-   if(game&&player===game.player&&player.EightBitter===game
-      &&player.alive&&!player.flickering&&!player.dying){
+   const activeHit=!!(game&&player&&player===game.player&&player.player
+      &&player.EightBitter===game&&player.alive
+      &&!player.dead&&!player.dying&&!player.flickering);
+   if(activeHit&&kuznechikActive){
+      // A normal hit breaks the Kuznechik, but must NOT shrink the hero,
+      // reduce power from 3 to 1, remove fireballs, or consume a life.
       resetKuznechik();
+      if(!big){
+         // Match the engine's post-damage flicker immunity: without this,
+         // touching the same enemy again on the next frame would power down.
+         player.EightBitter.animateFlicker(player);
+         return;
+      }
    }
+   // Fatal falls/forced death are not absorbed, avoiding an endless fall.
    return nativeDamage.call(this,player,big);
  };
  klass.killPlayer=onDamage;

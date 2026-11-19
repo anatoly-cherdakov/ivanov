@@ -227,13 +227,20 @@ function showLavaSpeech(instance){
    if(game===instance&&serial===lavaSpeechSerial)caption.hidden=true;
  },180);
 }
-function installLavaSpeechHook(fsm){
- const nativeJump=fsm.animatePodobooJumpUp;
- fsm.animatePodobooJumpUp=function(podoboo){
-   const result=nativeJump.call(this,podoboo);
-   if(podoboo&&podoboo.title==="Podoboo"&&game===fsm)showLavaSpeech(fsm);
-   return result;
- };
+// A Podoboo is one lava-ball object that repeatedly jumps every few seconds.
+// Say the phrase ONCE when that object FIRST rises into view, not at each
+// repeat of its internal animation timer.
+function maybeShowLavaSpeech(thing,fsm){
+ if(!thing||thing.title!=="Podoboo"||thing._lavaSpeechShown||
+    thing.hidden||thing.dead||!(thing.yvel<0)||
+    game!==fsm||$("playing").hidden)return;
+ const drawer=fsm.PixelDrawer,view=fsm.MapScreener;
+ const unit=fsm.unitsize||2;
+ const left=drawer.getLeft(thing),top=drawer.getTop(thing);
+ if(left+thing.width*unit<=0||left>=view.width||
+    top+thing.height*unit<=0||top>=view.height)return;
+ thing._lavaSpeechShown=true;
+ showLavaSpeech(fsm);
 }
 function loadEndingArt(){
  const art=window.FRIENDS_ENDING_ART||{};
@@ -606,7 +613,10 @@ function configureRenderer(fsm){
   if(thing===fsm.player)return drawHero(ctx,thing);
   if(thing&&thing.title==="Bowser"&&drawRoerichBoss(ctx,thing))return;
   if(endingArtKind(thing)&&drawEndingThing(ctx,thing))return;
-  return original.call(this,ctx,thing);
+  const result=original.call(this,ctx,thing);
+  // Only a newly visible upward-moving fireball may start the caption.
+  maybeShowLavaSpeech(thing,fsm);
+  return result;
  };
  drawingPatched=true;
 }
@@ -854,7 +864,6 @@ function beginGame(){
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
-   installLavaSpeechHook(fsm);
    // Synchronize the visible control also when the engine pauses externally.
    const runner=fsm.GamesRunner;
    const nativePauseHook=runner.onPause, nativePlayHook=runner.onPlay;

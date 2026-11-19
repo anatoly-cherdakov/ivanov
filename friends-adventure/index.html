@@ -179,7 +179,7 @@ let face=1;
 let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
-let flowersInRow=0,flowerPlayer=null;
+let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
@@ -402,7 +402,6 @@ function drawKuznechik(ctx,heroX,heroY,heroWidth,heroHeight,rise){
 }
 function resetKuznechik(){
  flowersInRow=0;
- flowerPlayer=null;
  kuznechikActive=false;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");
@@ -454,7 +453,9 @@ function installKuznechikFlowerRule(){
    const result=originalFlower.call(this,player,item);
    if(eligible){
      item._kuznechikCounted=true;
-     if(flowerPlayer!==player){flowerPlayer=player;flowersInRow=0;}
+     // addPlayer creates a NEW Player on each stage/area; the streak belongs
+     // to this game session, not to the particular Player object.
+     // Do not reset the streak across level or location transitions.
      flowersInRow++;
      if(flowersInRow>=3){flowersInRow=0;activateKuznechik(player);}
    }

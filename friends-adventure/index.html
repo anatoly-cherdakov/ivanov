@@ -413,8 +413,15 @@ function activateKuznechik(player){
  kuznechikActive=true;
  const label=$("grasshopperSpeech");
  if(label){label.textContent="Я могу и 10 грамм";label.hidden=false;}
- // Persistent until the player's NEXT ACTUAL DAMAGE, not a time limit.
- // Gameplay pause, map transitions and collecting other items do not end it.
+ // Only the caption expires after 480 game ticks (~8 seconds).
+ // The Kuznechik itself stays until the player takes damage.
+ const currentGame=game;
+ const serial=++kuznechikSerial;
+ currentGame.TimeHandler.addEvent(function(){
+   if(game===currentGame&&serial===kuznechikSerial&&label){
+     label.hidden=true;
+   }
+ },480);
 }
 function installKuznechikDamageRule(){
  const klass=FullScreenMario.prototype;

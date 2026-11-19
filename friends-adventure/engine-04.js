@@ -9141,7 +9141,10 @@ var FullScreenMario = (function(GameStartr) {
      * @remarks Yes, it's called numballs.
      */
     function animatePlayerFire(thing) {
-        if (thing.numballs >= 2) {
+        // Normal B keeps the classic two-fireball limit. Mobile B Turbo
+        // uses a small bounded pool with a fixed lifespan, so holding the
+        // button never creates a burst of 20 balls followed by a long stall.
+        if (thing.numballs >= (thing.turboFire ? 7 : 2)) {
             return;
         }
         
@@ -9166,6 +9169,17 @@ var FullScreenMario = (function(GameStartr) {
         };
 
         thing.numballs += 1;
+        if (thing.turboFire) {
+            // One Turbo projectile lives for 52 game ticks (~0.87s at 60fps).
+            // It is then removed through the normal deletion path, which
+            // also calls ball.onDelete and decrements numballs correctly.
+            // This prevents buildup and keeps the release rate even.
+            thing.EightBitter.TimeHandler.addEvent(function () {
+                if (ball.alive) {
+                    ball.EightBitter.killNormal(ball);
+                }
+            }, 52);
+        }
         thing.EightBitter.addClass(thing, "firing");
         
         thing.EightBitter.TimeHandler.addEvent(function () {

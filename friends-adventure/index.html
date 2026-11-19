@@ -48,11 +48,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 #game .FullScreenMario{position:absolute!important;top:0!important;left:0!important;transform:scale(var(--game-scale,2))!important;transform-origin:0 0!important;width:256px!important;height:232px!important}
 #game canvas{image-rendering:pixelated!important}
 .ending-thanks{
- position:absolute;z-index:100;top:34%;left:2%;width:96%;
- pointer-events:none;text-align:center;color:#fff;
- font-family:monospace;font-size:clamp(12px,3.4vw,17px);
- line-height:1.5;font-weight:900;letter-spacing:-.4px;
- text-shadow:2px 2px 0 #000,0 0 1px #fff;white-space:nowrap;
+ position:absolute;z-index:100;top:0;left:0;width:100%;height:100%;
+ pointer-events:none;image-rendering:pixelated!important;
 }
 .ending-thanks[hidden]{display:none!important}
 #grasshopperSpeech{
@@ -215,15 +212,53 @@ function loadEndingArt(){
      .catch(error=>console.error("Unable to decode ending sprite",key,error));
  }
 }
+// The castle's native Text sprites are 7x7 white pixels. Use identical
+// 7x7 letter cells and 1-pixel spacing for the Cyrillic translations.
+const endingPixelGlyphs={"А":"0011100/0110110/1100011/1100011/1111111/1100011/1100011","Б":"1111111/1100000/1100000/1111110/1100011/1100011/1111110","В":"1111110/1100011/1100011/1111110/1100011/1100011/1111110","Г":"1111111/1100000/1100000/1100000/1100000/1100000/1100000","Д":"0011110/0110110/1100110/1100110/1100110/1111111/1100011","Е":"1111111/1100000/1100000/1111110/1100000/1100000/1111111","Ё":"0110110/0000000/1111111/1100000/1111110/1100000/1111111","И":"1100011/1110011/1111011/1101111/1100111/1100011/1100011","Й":"0011100/1100011/1110011/1111011/1101111/1100111/1100011","К":"1100011/1100110/1101100/1111000/1111100/1101110/1100111","Л":"0001111/0011011/0110011/1100011/1100011/1100011/1100011","Н":"1100011/1100011/1100011/1111111/1100011/1100011/1100011","О":"0111110/1100011/1100011/1100011/1100011/1100011/0111110","П":"1111111/1100011/1100011/1100011/1100011/1100011/1100011","Р":"1111110/1100011/1100011/1100011/1111110/1100000/1100000","С":"0011110/0110011/1100000/1100000/1100000/0110011/0011110","Т":"0111111/0001100/0001100/0001100/0001100/0001100/0001100","У":"0110011/0110011/0110011/0011110/0001100/0001100/0001100","Ц":"1100011/1100011/1100011/1100011/1100011/1111111/0000111","Щ":"1101011/1101011/1101011/1101011/1101011/1111111/0000011","Ы":"1100011/1100011/1100011/1111011/1101111/1100111/1100011","Ю":"1101110/1101011/1101011/1111011/1101011/1101011/1101110"," ":"0000000/0000000/0000000/0000000/0000000/0000000/0000000",",":"0000000/0000000/0000000/0000000/0011000/0011000/0110000","!":"0011000/0011000/0011000/0011000/0011000/0000000/0011000"};
+let endingGreetingVisible=false,endingSecondVisible=false;
+function paintCastleEnding(){
+ const canvas=$("endingThanks");
+ if(!canvas)return;
+ const ctx=canvas.getContext("2d");
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ if(!endingGreetingVisible&&!endingSecondVisible){canvas.hidden=true;return;}
+ canvas.hidden=false;
+ ctx.fillStyle="#fff";
+ function drawLine(value,y){
+   const chars=Array.from(value.toUpperCase());
+   const startX=Math.floor((256-chars.length*8+1)/2);
+   chars.forEach((letter,index)=>{
+     const glyph=endingPixelGlyphs[letter];
+     if(!glyph)return;
+     const rows=glyph.split("/");
+     for(let row=0;row<7;row++)
+       for(let col=0;col<7;col++)
+         if(rows[row][col]==="1")
+           ctx.fillRect(startX+index*8+col,y+row,1,1);
+   });
+ }
+ if(endingGreetingVisible)
+   drawLine(chosen===0?"Благодарю, Ванёк!":"Спасибо, отец Анатолий!",77);
+ if(endingSecondVisible){
+   drawLine("Но ты ещё не увидел",109);
+   drawLine("свои руки во сне",125);
+ }
+ const captions=[];
+ if(endingGreetingVisible)captions.push(chosen===0?"Благодарю, Ванёк!":"Спасибо, отец Анатолий!");
+ if(endingSecondVisible)captions.push("Но ты ещё не увидел свои руки во сне");
+ canvas.setAttribute("aria-label",captions.join(". "));
+}
 function hideEndingThanks(){
- const el=$("endingThanks");
- if(el)el.hidden=true;
+ endingGreetingVisible=false;endingSecondVisible=false;
+ paintCastleEnding();
 }
 function showEndingThanks(){
- const el=$("endingThanks");
- if(!el)return;
- el.textContent=chosen===0?"Благодарю, Ванёк!":"Спасибо, отец Анатолий!";
- el.hidden=false;
+ endingGreetingVisible=true;
+ paintCastleEnding();
+}
+function showEndingNext(){
+ endingSecondVisible=true;
+ paintCastleEnding();
 }
 function endingArtKind(thing){
  if(!thing)return null;
@@ -266,12 +301,15 @@ function installLocalizedEndings(){
  const klass=FullScreenMario.prototype;
  if(klass._friendsEndingInstalled)return;
  klass._friendsEndingInstalled=true;
- // Preserve the engine's normal reveal timing and level transport while
- // replacing only the first THANK YOU MARIO text with a Cyrillic overlay.
+ // Hide the engine's original Latin-only text sprites, but retain the
+ // collection entries so that the original reveal and transport work.
  const textSettings=klass.settings.objects.properties.CustomText;
  const originalTextSpawn=textSettings.onThingAdded;
  textSettings.onThingAdded=function(thing){
-   if(thing.collectionName==="endInsideCastleText"&&thing.collectionKey==="1"){
+   if(thing.collectionName==="endInsideCastleText"&&
+      (thing.collectionKey==="1"||
+       (thing.collectionKey==="2"&&thing.texts&&
+        thing.texts.some(line=>line&&line.text==="BUT OUR PRINCESS IS IN")))){
      thing.texts=[{text:" "}];
    }
    return originalTextSpawn(thing);
@@ -279,10 +317,15 @@ function installLocalizedEndings(){
  const originalNPC=klass.collideCastleNPC;
  klass.collideCastleNPC=function(player,detector){
    const instance=player.EightBitter;
-   // Match the original game's first 140-tick text reveal.
+   const isToad=!!(detector.collection&&detector.collection.npc&&
+     detector.collection.npc.collectionKeys&&
+     detector.collection.npc.collectionKeys.length===2);
    instance.TimeHandler.addEvent(function(){
      if(game===instance&&!$("playing").hidden)showEndingThanks();
    },140);
+   if(isToad)instance.TimeHandler.addEvent(function(){
+     if(game===instance&&!$("playing").hidden)showEndingNext();
+   },280);
    return originalNPC.call(this,player,detector);
  };
 }
@@ -762,11 +805,14 @@ function beginGame(){
    };
    $("game").textContent="";
    $("game").appendChild(fsm.container);
-   const endingMessage=document.createElement("div");
+   const endingMessage=document.createElement("canvas");
    endingMessage.id="endingThanks";
    endingMessage.className="ending-thanks";
+   endingMessage.width=256;
+   endingMessage.height=232;
    endingMessage.hidden=true;
-   endingMessage.setAttribute("aria-live","polite");
+   endingMessage.setAttribute("role","img");
+   endingMessage.setAttribute("aria-label","");
    $("game").appendChild(endingMessage);
    const pogoCaption=document.createElement("div");
    pogoCaption.id="grasshopperSpeech";

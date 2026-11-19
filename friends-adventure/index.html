@@ -405,11 +405,11 @@ function installLocalizedEndings(){
  const textSettings=klass.settings.objects.properties.CustomText;
  const originalTextSpawn=textSettings.onThingAdded;
  textSettings.onThingAdded=function(thing){
-   // Both castle scenes use native Latin-only CustomText. Suppress
-   // keys 1 and 2 in both scenes; their Cyrillic versions appear on
-   // our overlay at the engine's original 140/280-tick reveal times.
+   // Hide original English ending text, including Peach's third B-button
+   // instruction. Keep all text collection slots so the existing ending
+   // reveal and level transition timings are preserved.
    if(thing.collectionName==="endInsideCastleText"&&
-      (thing.collectionKey==="1"||thing.collectionKey==="2")){
+      (thing.collectionKey==="1"||thing.collectionKey==="2"||thing.collectionKey==="3")){
      thing.texts=[{text:" "}];
    }
    return originalTextSpawn(thing);
@@ -423,7 +423,7 @@ function installLocalizedEndings(){
      const parts=originalCastle.apply(this,arguments);
      for(const obj of parts){
        if(obj.thing!=="CustomText"||obj.collectionName!=="endInsideCastleText")continue;
-       if(obj.collectionKey==="1"||obj.collectionKey==="2")
+       if(obj.collectionKey==="1"||obj.collectionKey==="2"||obj.collectionKey==="3")
          obj.texts=[{text:" "}];
      }
      return parts;

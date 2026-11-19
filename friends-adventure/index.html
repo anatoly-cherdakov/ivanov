@@ -56,11 +56,15 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 }
 .ending-thanks[hidden]{display:none!important}
 #grasshopperSpeech{
- position:absolute;z-index:110;left:50%;top:39px;transform:translateX(-50%);
- padding:6px 10px;border:2px solid #394c74;border-radius:6px;
- background:#ffeda3;color:#17233d;box-shadow:2px 3px 0 #0007;
- font:bold clamp(12px,2.7vw,16px)/1.2 Arial,sans-serif;
- text-align:center;white-space:nowrap;pointer-events:none;max-width:96%
+ position:absolute;z-index:110;left:50%;top:50%;
+ transform:translate(-50%,-50%);max-width:98%;
+ padding:0;margin:0;border:0;border-radius:0;
+ background:transparent;box-shadow:none;outline:0;
+ font-family:'Press Start','Press Start 2P',monospace;
+ font-size:clamp(10px,2.4vw,14px);font-weight:normal;
+ line-height:1.35;letter-spacing:0;white-space:nowrap;
+ color:#fff;text-align:center;text-shadow:1px 1px 0 #000;
+ pointer-events:none
 }
 #grasshopperSpeech[hidden]{display:none!important}
 #game #dataDisplay{font-size:11px!important}
@@ -329,12 +333,14 @@ function drawHero(ctx,thing){
  const hitWidth=thing.width*unit;
  const px=Math.round(screenX+(hitWidth-displayWidth)/2);
  let py=Math.round(screenY+thing.height*unit-displayHeight);
- // Bounce the complete hero+pogo illustration, not the collision hitbox.
+ // Ground is the collision box's bottom. The rider's feet are 13 pixels
+ // above it, leaving room for the spring, so neither sprite enters the soil.
+ // This is visual-only: normal walking, jumping and collision rules remain.
  let pogoRise=0;
  if(kuznechikActive){
    const phase=(game.PixelDrawer.framesDrawn||0)%48;
-   pogoRise=Math.round((1-Math.cos(phase*Math.PI/24))*5);
-   py-=pogoRise;
+   pogoRise=Math.round((1-Math.cos(phase*Math.PI/24))*3);
+   py-=13+pogoRise;
  }
  ctx.save();
  ctx.imageSmoothingEnabled=false;
@@ -368,36 +374,33 @@ function drawHero(ctx,thing){
    ctx.restore();
  }
 }
-// A compact pogo-stick "Kuznechik" UNDER the hero's feet, with handles at
-// hand height, metal shaft and a visible compressing spring.
+// The grey metal pogo stick is drawn UNDER the rider.
+// Its lowest pixel is always above the actual collision-ground position.
 function drawKuznechik(ctx,heroX,heroY,heroWidth,heroHeight,rise){
  const cx=Math.round(heroX+heroWidth/2);
  const feet=Math.round(heroY+heroHeight);
- const gripY=feet-21;
- const restY=feet-1;
- const compression=Math.max(0,3-Math.round(rise/3));
  const rect=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
  ctx.save();
  ctx.imageSmoothingEnabled=false;
- // Metal central stem beneath the handlebars.
- rect(cx-2,gripY+2,5,32-compression,"#1b2a43");
- rect(cx-1,gripY+3,2,28-compression,"#c8dbea");
- // T-shaped handle: wide enough to project beyond the hero's body.
- rect(cx-15,gripY,30,3,"#26364b");
- rect(cx-15,gripY-1,8,3,"#45bc70");
- rect(cx+7,gripY-1,8,3,"#45bc70");
- // Both feet stand on these two pedals (at the hero's bottom).
- rect(cx-13,restY,27,4,"#182b44");
- rect(cx-12,restY,9,2,"#57c774");
- rect(cx+4,restY,9,2,"#57c774");
- // Spring visible BELOW the pedals, compressing as he bounces.
+ // Compact dark handlebar (no long green horizontal stripes).
+ rect(cx-9,feet-17,18,2,"#1e2c43");
+ rect(cx-8,feet-18,3,2,"#778598");
+ rect(cx+5,feet-18,3,2,"#778598");
+ // Upright shaft: most of it is behind the hero's body.
+ rect(cx-2,feet-15,4,20,"#223348");
+ rect(cx-1,feet-14,2,19,"#c8d7e8");
+ // Two independent foot pedals directly under the character.
+ rect(cx-9,feet-1,18,3,"#25354a");
+ rect(cx-8,feet-2,6,2,"#bfc9d6");
+ rect(cx+2,feet-2,6,2,"#bfc9d6");
+ // Metal spring and tip occupy the 12px below the pedals.
  for(let i=0;i<4;i++){
-   const y=restY+4+i*2-compression;
-   rect(cx-4,y,9,1,"#243954");
-   rect(cx-3,y+1,7,1,"#e8edf7");
+   const y=feet+3+i*2;
+   rect(cx-4,y,8,1,"#26364a");
+   rect(cx-3,y+1,6,1,"#e2e8ef");
  }
- rect(cx-2,restY+12-compression,5,4,"#36465c");
- rect(cx-3,restY+15-compression,7,2,"#101b2c");
+ rect(cx-2,feet+11,4,1,"#647487");
+ // At maximum extension the tip ends at feet+12: still ABOVE ground.
  ctx.restore();
 }
 function resetKuznechik(){

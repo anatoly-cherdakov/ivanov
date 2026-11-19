@@ -51,6 +51,25 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
 .duo-credit a{color:#c1d7ff}
+
+/* NES-style touch controller: only on small/mobile devices. */
+.mobile-controller{display:none;width:100%;gap:clamp(6px,2.5vw,18px);align-items:center;justify-content:space-between;margin-top:12px;padding:12px 10px;border:2px solid #43557c;border-radius:17px;background:linear-gradient(155deg,#27334c,#141b31 72%);box-shadow:inset 0 2px 0 #65739155,0 7px 15px #0005;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.mobile-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;flex:1;max-width:190px}
+.mobile-dpad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:3px;width:min(48%,168px);aspect-ratio:1;flex-shrink:0}
+.mobile-controller button{appearance:none;-webkit-appearance:none;touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer;outline-offset:2px;color:#fff;font-family:Arial,sans-serif;font-weight:900;line-height:1.1;box-shadow:inset 0 2px 0 #ffffff30,0 3px 0 #080d1b}
+.mobile-controller button:active,.mobile-controller button.is-held{transform:translateY(2px);box-shadow:inset 0 2px 0 #ffffff21,0 1px 0 #080d1b;filter:brightness(1.25)}
+.mobile-actions .pad-action{min-width:0;min-height:53px;padding:8px 3px;border-radius:35px;border:2px solid #ffa1a7;background:linear-gradient(165deg,#df3856,#9c1832);font-size:19px}
+.mobile-actions .pad-turbo{min-height:53px;font-size:12px;border-color:#e698a5;background:linear-gradient(165deg,#923a56,#61223e)}
+.mobile-actions .pad-turbo span{display:block;font-size:16px;line-height:1.05}
+.mobile-actions .pad-turbo small{display:block;font-size:9px;letter-spacing:.35px}
+.mobile-dpad .pad-arrow{border:1px solid #667ca7;border-radius:8px;background:linear-gradient(145deg,#344764,#192b49);font-size:clamp(20px,5vw,27px);min-width:0;min-height:0;padding:0}
+.mobile-dpad .pad-up{grid-column:2;grid-row:1}
+.mobile-dpad .pad-left{grid-column:1;grid-row:2}
+.mobile-dpad .pad-center{grid-column:2;grid-row:2;background:#18263f;border-radius:5px;box-shadow:inset 0 0 0 1px #37486b}
+.mobile-dpad .pad-right{grid-column:3;grid-row:2}
+.mobile-dpad .pad-down{grid-column:2;grid-row:3}
+@media (max-width:767px), (pointer:coarse){.mobile-controller{display:flex}}
+@media (max-width:355px){.mobile-controller{padding:9px 7px;gap:7px}.mobile-actions{gap:5px}.mobile-actions .pad-action{font-size:18px;min-height:47px}.mobile-actions .pad-turbo{min-height:47px}.mobile-dpad{width:46%}}
 #startScreen[hidden],#playing[hidden]{display:none!important}
 body.game-active .duo-header{display:none!important}
 @media(max-width:565px){
@@ -101,6 +120,21 @@ body.game-active .duo-header{display:none!important}
 <div id="playing" hidden>
  <nav class="game-actions"><button id="backToMenu" type="button">☰ Сменить героя</button><button id="restart" type="button">↻ Начать уровень заново</button><label for="quality">Качество:</label><select id="quality"><option value="30" selected>30 к/с — быстро</option><option value="60">60 к/с — плавно</option><option value="20">20 к/с — экономно</option></select></nav>
  <div id="game"></div>
+ <section id="mobileController" class="mobile-controller" aria-label="Сенсорный геймпад Dendy">
+  <div class="mobile-actions" aria-label="Кнопки действий">
+   <button type="button" class="pad-action" data-pad="a" aria-label="A — прыгать">A</button>
+   <button type="button" class="pad-action" data-pad="b" aria-label="B — бег и огонь">B</button>
+   <button type="button" class="pad-action pad-turbo" data-pad="a-turbo" aria-label="A Turbo — повторять прыжок"><span>A</span><small>TURBO</small></button>
+   <button type="button" class="pad-action pad-turbo" data-pad="b-turbo" aria-label="B Turbo — повторять огонь и бег"><span>B</span><small>TURBO</small></button>
+  </div>
+  <div class="mobile-dpad" aria-label="Крестовина">
+   <button type="button" class="pad-arrow pad-up" data-pad="up" aria-label="Стрелка вверх">▲</button>
+   <button type="button" class="pad-arrow pad-left" data-pad="left" aria-label="Стрелка влево">◀</button>
+   <span class="pad-center" aria-hidden="true"></span>
+   <button type="button" class="pad-arrow pad-right" data-pad="right" aria-label="Стрелка вправо">▶</button>
+   <button type="button" class="pad-arrow pad-down" data-pad="down" aria-label="Стрелка вниз">▼</button>
+  </div>
+ </section>
  <div class="duo-tip">← → / A, D — движение · Пробел / ↑ / W — прыжок · Shift / Ctrl — бег и огонь после цветка · P — пауза</div>
 </div>
 </main>
@@ -245,6 +279,97 @@ function changeQuality(){
  const fps=Number($("quality").value)||30;
  game.PixelDrawer.setFramerateSkip(Math.max(1,Math.round(60/fps)));
 }
+
+/*
+ * Multi-touch gamepad, mapped to real FullScreenMario input handlers.
+ * One finger can hold a direction while another jumps or fires.
+ * Turbo generates real alternating key-down/key-up edges.
+ */
+const padMapping={
+ "a":"Up","b":"Sprint","a-turbo":"Up","b-turbo":"Sprint",
+ "up":"Up","down":"Down","left":"Left","right":"Right"
+};
+const padHeld={Up:new Set(),Sprint:new Set(),Down:new Set(),Left:new Set(),Right:new Set()};
+const padPointers=new Map();
+const padEvent={preventDefault(){}};
+function padReady(){
+ return !!(game&&game.player&&!$("playing").hidden
+    &&game.GamesRunner&&!game.GamesRunner.getPaused());
+}
+function padSignal(action,pressed){
+ if(!game||!game.player)return;
+ const handler=game["key"+(pressed?"Down":"Up")+action];
+ if(typeof handler==="function")handler(game.player,padEvent);
+}
+function padPress(action,token){
+ const holders=padHeld[action];
+ if(!holders||holders.has(token)||!padReady())return;
+ if(holders.size===0)padSignal(action,true);
+ holders.add(token);
+}
+function padRelease(action,token){
+ const holders=padHeld[action];
+ if(!holders||!holders.delete(token))return;
+ if(holders.size===0){
+   padSignal(action,false);
+   // If two opposite directions were held, let the other stay active.
+   const opposite=action==="Left"?"Right":action==="Right"?"Left":null;
+   if(opposite&&padHeld[opposite].size>0&&padReady())padSignal(opposite,true);
+ }
+}
+function padStopPointer(pointerId){
+ const state=padPointers.get(pointerId);
+ if(!state)return;
+ padPointers.delete(pointerId);
+ if(state.timer)clearInterval(state.timer);
+ padRelease(state.action,state.token);
+ state.button.classList.remove("is-held");
+}
+function padStopAll(){
+ for(const id of [...padPointers.keys()])padStopPointer(id);
+ for(const action of Object.keys(padHeld)){
+   if(padHeld[action].size){
+     padHeld[action].clear();
+     padSignal(action,false);
+   }
+ }
+}
+function setupMobileController(){
+ const root=$("mobileController");
+ if(!root)return;
+ root.addEventListener("contextmenu",event=>event.preventDefault());
+ for(const button of root.querySelectorAll("button[data-pad]")){
+   button.addEventListener("pointerdown",event=>{
+     if(!padReady())return;
+     event.preventDefault();
+     const name=button.dataset.pad,action=padMapping[name];
+     if(!action||padPointers.has(event.pointerId))return;
+     const token=name+":"+event.pointerId;
+     const state={action,token,button,timer:null,phase:true};
+     padPointers.set(event.pointerId,state);
+     button.classList.add("is-held");
+     try{button.setPointerCapture(event.pointerId)}catch(_){}
+     padPress(action,token);
+     if(name.endsWith("-turbo")){
+       // 90ms on / 90ms off: ~5.5 presses per second.
+       state.timer=setInterval(()=>{
+         if(!padReady()){padStopPointer(event.pointerId);return;}
+         if(state.phase)padRelease(action,token);
+         else padPress(action,token);
+         state.phase=!state.phase;
+       },90);
+     }
+   });
+   button.addEventListener("pointerup",event=>{event.preventDefault();padStopPointer(event.pointerId)});
+   button.addEventListener("pointercancel",event=>{event.preventDefault();padStopPointer(event.pointerId)});
+   button.addEventListener("lostpointercapture",event=>padStopPointer(event.pointerId));
+   button.addEventListener("dragstart",event=>event.preventDefault());
+ }
+ window.addEventListener("pointerup",event=>padStopPointer(event.pointerId));
+ window.addEventListener("pointercancel",event=>padStopPointer(event.pointerId));
+ window.addEventListener("blur",padStopAll);
+ document.addEventListener("visibilitychange",()=>{if(document.hidden)padStopAll()});
+}
 function beginGame(){
  if(busy||chosen<0||!heroImage.complete||!heroImage.naturalWidth)return;
  busy=true;
@@ -254,6 +379,7 @@ function beginGame(){
  setTimeout(function(){
   try {
    if(typeof FullScreenMario!=="function")throw Error("Движок не загрузился. Проверь интернет.");
+   padStopAll();
    if(game){try{game.GamesRunner.pause();}catch(_){}}
    game=null;
    face=1;
@@ -335,6 +461,7 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ padStopAll();
  if(game&&!game.GamesRunner.getPaused())game.GamesRunner.pause();
  $("playing").hidden=true;
  $("startScreen").hidden=false;
@@ -342,10 +469,12 @@ function backToMenu(){
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ padStopAll();
  if(!game)return;
  game.setMap($("levelSelect").value||"1-1");
 }
 function setup(){
+ setupMobileController();
  if(typeof ResizeObserver==="function"){
    const gameResizeObserver=new ResizeObserver(syncGameScale);
    gameResizeObserver.observe($("game"));

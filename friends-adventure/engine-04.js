@@ -5389,13 +5389,21 @@ var FullScreenMario = (function(GameStartr) {
     function spawnPiranha(thing) {
         thing.counter = 0;
         thing.direction = thing.EightBitter.unitsize / -40;
-        
+
         if (thing.onPipe) {
             var bottom = thing.bottom;
-            
-            thing.EightBitter.setHeight(thing, 6, true, true);
-            
+
+            // The original SMB prevents Piranha Plants from emerging when
+            // Mario is close to, or on top of, a pipe. A half-exposed spawn
+            // breaks this at underground return-pipe entrances, killing Mario
+            // immediately after the pipe-exit animation finishes.
+            //
+            // Spawn hidden instead. The existing movePiranhaLatent function
+            // waits for Mario to move away, and only then reverses direction
+            // and lets the plant emerge. Ordinary exposed plants remain lethal.
+            thing.EightBitter.setHeight(thing, 0, true, true);
             thing.EightBitter.setBottom(thing, bottom);
+            thing.movement = thing.EightBitter.movePiranhaLatent;
         }
     }
     

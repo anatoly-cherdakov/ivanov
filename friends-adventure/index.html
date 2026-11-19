@@ -52,7 +52,7 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  pointer-events:none;image-rendering:pixelated!important;
 }
 .ending-thanks[hidden]{display:none!important}
-#grasshopperSpeech{
+#grasshopperSpeech,#lavaSpeech{
  position:absolute;z-index:110;left:50%;top:50%;
  transform:translate(-50%,-50%);max-width:98%;
  padding:0;margin:0;border:0;border-radius:0;
@@ -63,7 +63,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  color:#fff;text-align:center;text-shadow:1px 1px 0 #000;
  pointer-events:none
 }
-#grasshopperSpeech[hidden]{display:none!important}
+#grasshopperSpeech[hidden],#lavaSpeech[hidden]{display:none!important}
+#lavaSpeech{width:96%;max-width:96%;white-space:normal;line-height:1.6}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
@@ -166,7 +167,7 @@ body.game-active .duo-header{display:none!important}
 <!-- /build -->
 
         <!-- build:js index.min.js -->
-        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=a25407c0"></script>
+        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=a25407c0"></script><script src="roerich-boss-art.js?v=c02a64ee"></script>
 <script id="duo-app">
 (function(){
 "use strict";
@@ -180,6 +181,7 @@ let face=1;
 let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
+let roerichBossImage=null,lavaSpeechSerial=0;
 let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
 const $=id=>document.getElementById(id);
@@ -203,6 +205,35 @@ async function decodePixelArt(art){
  }
  context.putImageData(img,0,0);
  return canvas;
+}
+function loadRoerichBoss(){
+ const art=window.FRIENDS_ROERICH_BOSS_ART;
+ if(!art)return;
+ decodePixelArt(art).then(img=>{roerichBossImage=img;})
+ .catch(error=>console.error("Unable to decode Roerich boss sprite",error));
+}
+function hideLavaSpeech(){
+ lavaSpeechSerial++;
+ const caption=$("lavaSpeech");
+ if(caption)caption.hidden=true;
+}
+function showLavaSpeech(instance){
+ if(!instance||game!==instance||$("playing").hidden)return;
+ const caption=$("lavaSpeech");if(!caption)return;
+ caption.textContent="Союзник, возьми меня с собой!";
+ caption.hidden=false;
+ const serial=++lavaSpeechSerial;
+ instance.TimeHandler.addEvent(function(){
+   if(game===instance&&serial===lavaSpeechSerial)caption.hidden=true;
+ },180);
+}
+function installLavaSpeechHook(fsm){
+ const nativeJump=fsm.animatePodobooJumpUp;
+ fsm.animatePodobooJumpUp=function(podoboo){
+   const result=nativeJump.call(this,podoboo);
+   if(podoboo&&podoboo.title==="Podoboo"&&game===fsm)showLavaSpeech(fsm);
+   return result;
+ };
 }
 function loadEndingArt(){
  const art=window.FRIENDS_ENDING_ART||{};
@@ -269,6 +300,20 @@ function endingArtKind(thing){
  if(thing.title==="Toad")return "toad";
  if(thing.title==="Peach")return "peach";
  return null;
+}
+function drawRoerichBoss(ctx,thing){
+ if(!roerichBossImage)return false;
+ if(!thing||thing.hidden||thing.opacity===0||thing.height<=0)return true;
+ const unit=game.unitsize||2;
+ const x=game.PixelDrawer.getLeft(thing),y=game.PixelDrawer.getTop(thing);
+ const hitWidth=thing.width*unit,hitHeight=thing.height*unit;
+ // Bigger artwork with original Bowser physics and collision boundaries.
+ const size=Math.round(Math.max(hitWidth,hitHeight)*1.45);
+ const px=Math.round(x+(hitWidth-size)/2);
+ const py=Math.round(y+hitHeight-size);
+ ctx.save();ctx.imageSmoothingEnabled=false;
+ ctx.drawImage(roerichBossImage,px,py,size,size);
+ ctx.restore();return true;
 }
 function drawEndingThing(ctx,thing){
  if(!thing||thing.hidden||thing.opacity<=0||thing.height<=0)return true;
@@ -545,7 +590,7 @@ function configureRenderer(fsm){
  fsm.PixelDrawer.setThingSprite=function(thing){
    const result=originalSprite.call(this,thing);
    const kind=endingArtKind(thing);
-   const sprite=kind&&endingImages[kind];
+   const sprite=(thing&&thing.title==="Bowser"?roerichBossImage:null)||(kind&&endingImages[kind]);
    if(sprite&&thing.canvas&&thing.canvas.width&&thing.canvas.height){
      const target=thing.context||thing.canvas.getContext("2d");
      target.save();
@@ -559,6 +604,7 @@ function configureRenderer(fsm){
  const original=fsm.PixelDrawer.drawThingOnContext;
  fsm.PixelDrawer.drawThingOnContext=function(ctx,thing){
   if(thing===fsm.player)return drawHero(ctx,thing);
+  if(thing&&thing.title==="Bowser"&&drawRoerichBoss(ctx,thing))return;
   if(endingArtKind(thing)&&drawEndingThing(ctx,thing))return;
   return original.call(this,ctx,thing);
  };
@@ -759,6 +805,7 @@ function beginGame(){
    padStopAll();
    if(game){try{game.GamesRunner.pause();}catch(_){}}
    game=null;
+   hideLavaSpeech();
    resetKuznechik();
    pauseKeyHeld=false;
    face=1;
@@ -807,6 +854,7 @@ function beginGame(){
    FullScreenMario.prototype.settings.audio.directory="https://cdn.jsdelivr.net/gh/zveronline/mario@main/Sounds";
    const fsm=new FullScreenMario({width:256,height:232});
    game=window.FSM=fsm;
+   installLavaSpeechHook(fsm);
    // Synchronize the visible control also when the engine pauses externally.
    const runner=fsm.GamesRunner;
    const nativePauseHook=runner.onPause, nativePlayHook=runner.onPlay;
@@ -837,12 +885,19 @@ function beginGame(){
    pogoCaption.textContent="Я могу и 10 грамм";
    pogoCaption.hidden=true;
    $("game").appendChild(pogoCaption);
+   const lavaCaption=document.createElement("div");
+   lavaCaption.id="lavaSpeech";
+   lavaCaption.textContent="Союзник, возьми меня с собой!";
+   lavaCaption.hidden=true;
+   lavaCaption.setAttribute("role","status");
+   $("game").appendChild(lavaCaption);
    // Keep Kuznechik across level/map changes until the hero takes damage.
    // The original setMap implementation is not modified.
    // Clear the ending caption when the engine travels to another location.
    const nativeLocation=fsm.setLocation;
    fsm.setLocation=function(){
      hideEndingThanks();
+     hideLavaSpeech();
      return nativeLocation.apply(this,arguments);
    };
    fsm.PixelDrawer.setFramerateSkip(2);
@@ -880,6 +935,7 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ hideLavaSpeech();
  resetKuznechik();
  pauseKeyHeld=false;
  hideEndingThanks();
@@ -891,6 +947,7 @@ function backToMenu(){
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ hideLavaSpeech();
  resetKuznechik();
  pauseKeyHeld=false;
  hideEndingThanks();
@@ -905,6 +962,7 @@ function setup(){
  document.addEventListener("keyup",pauseKeyUp,true);
  window.addEventListener("blur",()=>{pauseKeyHeld=false;});
  loadEndingArt();
+ loadRoerichBoss();
  setupMobileController();
  if(typeof ResizeObserver==="function"){
    const gameResizeObserver=new ResizeObserver(syncGameScale);

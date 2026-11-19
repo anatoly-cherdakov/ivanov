@@ -2,6 +2,7 @@
 <html lang="en-us">
     <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Два друга — классическое приключение</title>
         <meta name="keywords" content="fullscreenmario, full, screen, mario, javascript, html5, gaming, online, online game, fun, distraction" />
         <meta name="description" content="FullScreenMario is a free HTML5 remake of Nintendo's original Super Mario Bros. Play it here!" />
@@ -38,13 +39,13 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .primary:not(:disabled):hover{background:#ffe985}
 .menu-status{display:none;font-size:13px}.menu-status.is-error{display:block;color:#ffb89d}
 .menu-help{font-size:12px;color:#b9c9e5;line-height:1.55}
-#playing{width:512px;max-width:100%}
+#playing{width:min(512px,100%);max-width:100%;min-width:0}
 .game-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-bottom:13px}
 .game-actions button{background:#29446d;border:1px solid #7399d7;border-radius:6px;color:white;padding:9px 11px;cursor:pointer;font-size:13px;font-weight:700}
 .game-actions label{font-size:12px;color:#a9c3e9}
 .game-actions select{font-size:12px;padding:6px 5px}
-#game{position:relative;width:512px;height:464px;max-width:none;overflow:hidden;border:4px solid #a6b9de;border-radius:3px;background:#5c94fc;box-shadow:0 8px 25px #0007}
-#game .FullScreenMario{position:absolute!important;top:-4px;left:-4px;transform:scale(2);transform-origin:0 0;width:256px!important;height:232px!important}
+#game{position:relative;display:block;width:100%;max-width:512px;height:auto;aspect-ratio:256/232;overflow:hidden;border:0;outline:3px solid #a6b9de;border-radius:2px;background:#5c94fc;box-shadow:0 8px 25px #0007;contain:layout paint}
+#game .FullScreenMario{position:absolute!important;top:0!important;left:0!important;transform:scale(var(--game-scale,2))!important;transform-origin:0 0!important;width:256px!important;height:232px!important}
 #game canvas{image-rendering:pixelated!important}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
@@ -52,7 +53,28 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 .duo-credit a{color:#c1d7ff}
 #startScreen[hidden],#playing[hidden]{display:none!important}
 body.game-active .duo-header{display:none!important}
-@media(max-width:565px){.duo-main{overflow-x:auto;justify-content:flex-start}.start-screen{min-width:0}#playing{min-width:512px}}
+@media(max-width:565px){
+ html,body{width:100%;max-width:100%;overflow-x:clip}
+ .duo-main{overflow:visible;justify-content:center;width:100%;min-width:0;min-height:0;padding:14px 12px 18px}
+ .start-screen{width:100%;max-width:100%;min-width:0;margin:0;padding:16px 12px 18px}
+ .friends-poster{width:100%;max-width:416px}
+ .hero-picks{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;max-width:435px}
+ .hero-pick{min-width:0;padding:8px 3px}
+ .hero-pick span{font-size:16px}
+ .hero-pick small{font-size:11px;overflow-wrap:anywhere}
+ .start-actions{gap:10px}
+ #playing{width:100%;max-width:512px;min-width:0}
+ #game{width:100%;max-width:100%;margin:0 auto}
+ .game-actions{gap:6px}
+ .game-actions button{min-width:0;padding:8px 9px}
+ .menu-help,.duo-tip{overflow-wrap:anywhere}
+}
+@media(max-width:350px){
+ .duo-main{padding-inline:8px}
+ .start-screen{padding:12px 8px}
+ .hero-pick canvas{width:56px;height:84px}
+ .game-actions button{font-size:12px;padding:7px 6px}
+}
 </style></head>
 
     <body>
@@ -211,6 +233,13 @@ function configureRenderer(fsm){
  };
  drawingPatched=true;
 }
+// Scale only the visual 256×232 canvas. Keep collision and physics coordinates intact.
+function syncGameScale(){
+ const area=$("game");
+ if(!area)return;
+ const width=area.getBoundingClientRect().width;
+ if(width>0)area.style.setProperty("--game-scale",String(width/256));
+}
 function changeQuality(){
  if(!game)return;
  const fps=Number($("quality").value)||30;
@@ -286,6 +315,7 @@ function beginGame(){
    $("startScreen").hidden=true;
    $("playing").hidden=false;
    document.body.classList.add("game-active");
+   syncGameScale();
    fsm.gameStart();
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
@@ -316,6 +346,12 @@ function restart(){
  game.setMap($("levelSelect").value||"1-1");
 }
 function setup(){
+ if(typeof ResizeObserver==="function"){
+   const gameResizeObserver=new ResizeObserver(syncGameScale);
+   gameResizeObserver.observe($("game"));
+ }
+ window.addEventListener("resize",syncGameScale,{passive:true});
+ window.addEventListener("orientationchange",syncGameScale);
  displayCover();
  $("choose-black").onclick=()=>selectHero(0);
  $("choose-blue").onclick=()=>selectHero(1);

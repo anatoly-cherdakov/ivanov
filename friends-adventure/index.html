@@ -322,6 +322,11 @@ function padStopPointer(pointerId){
  if(!state)return;
  padPointers.delete(pointerId);
  if(state.timer)clearInterval(state.timer);
+ if(state.name==="b-turbo"&&game&&game.player){
+   // Keep Turbo enabled only while at least one B Turbo finger remains.
+   game.player.turboFire=[...padPointers.values()].some(
+      pointer=>pointer.name==="b-turbo");
+ }
  padRelease(state.action,state.token);
  state.button.classList.remove("is-held");
 }
@@ -335,29 +340,16 @@ function padStopAll(){
  }
 }
 /*
- * Turbo buttons repeat as long as a finger is held.
- * A Turbo: short jumps, repeated immediately upon landing (no fixed long delay).
- * B Turbo: keep sprint held and spawn rapid fireballs, with a Turbo-only
- *           projectile limit (normal B retains the original two-ball rule).
- * Both loops stop when the finger is released, even during multitouch.
+ * Turbo controls: held A repeats on landing, held B runs continuously and
+ * fires at one evenly spaced pulse per 170ms. Ball count/lifetime are handled
+ * by the game engine; we never overwrite the live numballs counter.
  */
+// The engine now has a bounded seven-ball Turbo pool with automatic expiry.
+ // No counter manipulation, no accumulated fire requests and no burst queue.
 function padTurboShoot(player){
- if(player.power!==3||player.crouching||player.dying||player.dead
-    ||typeof player.fire!=="function")return;
- const count=Math.max(0,Number(player.numballs)||0);
- // Keep enough projectiles moving that held Turbo doesn't stall mid-screen.
- // Normal B still uses the original two-ball ceiling.
- if(count>=20)return;
- if(count<2){player.fire(player);return;}
- // The upstream fire routine has a hard-coded two-ball guard.
- // Temporarily bypass that guard for this single Turbo shot, while
- // preserving the true count for onDelete callbacks and collision physics.
- player.numballs=1;
- try{
-   player.fire(player);
- }finally{
-   player.numballs=count+1;
- }
+ if(player.power!==3 || player.crouching || player.dying || player.dead
+    || typeof player.fire!=="function")return;
+ player.fire(player);
 }
 function padTurboTick(state){
  if(!padPointers.has(state.pointerId))return;
@@ -379,11 +371,9 @@ function padTurboTick(state){
      state.nextJumpAt=now+105;
    }
  }else if(state.name==="b-turbo"){
-   // Sprint is pressed continuously for as long as B Turbo is held.
-   if(now>=state.nextFireAt){
-     padTurboShoot(player);
-     state.nextFireAt=now+85;
-   }
+   // Exactly one shot attempt per clock tick, with no catch-up bursts.
+   // Sprint remains held for the whole press.
+   padTurboShoot(player);
  }
 }
 function setupMobileController(){
@@ -401,14 +391,18 @@ function setupMobileController(){
      const state={
        action,token,button,pointerId:event.pointerId,name,timer:null,
        jumpHeld:name==="a-turbo",jumpReleaseAt:now+90,
-       nextJumpAt:now+105,nextFireAt:now+85
+       nextJumpAt:now+105
      };
      padPointers.set(event.pointerId,state);
      button.classList.add("is-held");
      try{button.setPointerCapture(event.pointerId)}catch(_){}
+     if(name==="b-turbo")game.player.turboFire=true;
      padPress(action,token);
      if(name.endsWith("-turbo")){
-       state.timer=setInterval(()=>padTurboTick(state),16);
+       // B Turbo sends regular pulses ~6 per second, including when held for
+       // many seconds. A Turbo retains fast landing detection.
+       state.timer=setInterval(()=>padTurboTick(state),
+          name==="b-turbo" ? 170 : 16);
      }
    });
    button.addEventListener("pointerup",event=>{event.preventDefault();padStopPointer(event.pointerId)});

@@ -52,7 +52,7 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  pointer-events:none;image-rendering:pixelated!important;
 }
 .ending-thanks[hidden]{display:none!important}
-#grasshopperSpeech,#lavaSpeech,#cheatSpeech{
+#grasshopperSpeech,#lavaSpeech,#cheatSpeech,#roerichSpeech{
  position:absolute;z-index:110;left:50%;top:50%;
  transform:translate(-50%,-50%);max-width:98%;
  padding:0;margin:0;border:0;border-radius:0;
@@ -63,8 +63,8 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  color:#fff;text-align:center;text-shadow:1px 1px 0 #000;
  pointer-events:none
 }
-#grasshopperSpeech[hidden],#lavaSpeech[hidden],#cheatSpeech[hidden]{display:none!important}
-#lavaSpeech,#cheatSpeech{width:96%;max-width:96%;white-space:normal;line-height:1.6}
+#grasshopperSpeech[hidden],#lavaSpeech[hidden],#cheatSpeech[hidden],#roerichSpeech[hidden]{display:none!important}
+#lavaSpeech,#cheatSpeech,#roerichSpeech{width:96%;max-width:96%;white-space:normal;line-height:1.6}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
@@ -181,7 +181,7 @@ let face=1;
 let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
-let roerichBossImage=null,lavaSpeechSerial=0;
+let roerichBossImage=null,lavaSpeechSerial=0,roerichSpeechSerial=0;
 // Down -> Jump -> Left, repeated ten times, grants lasting immunity.
 let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
 const cheatKeysHeld=new Set();
@@ -244,6 +244,33 @@ function maybeShowLavaSpeech(thing,fsm){
     top+thing.height*unit<=0||top>=view.height)return;
  thing._lavaSpeechShown=true;
  showLavaSpeech(fsm);
+}
+// First onscreen appearance of each Roerich/Bowser boss triggers exactly one
+// three-second speech bubble. A redraw or another animation frame cannot
+// re-trigger it, even after that bubble disappears.
+function hideRoerichSpeech(){
+ roerichSpeechSerial++;
+ const caption=$("roerichSpeech");
+ if(caption)caption.hidden=true;
+}
+function maybeShowRoerichSpeech(boss,fsm){
+ if(!boss||boss.title!=="Bowser"||boss._roerichSpeechShown||
+    boss.hidden||boss.dead||boss.alive===false||boss.opacity===0||
+    !roerichBossImage||game!==fsm||$("playing").hidden)return;
+ const drawer=fsm.PixelDrawer,screen=fsm.MapScreener,unit=fsm.unitsize||2;
+ const left=drawer.getLeft(boss),top=drawer.getTop(boss);
+ if(!Number.isFinite(left)||!Number.isFinite(top)||
+    left+boss.width*unit<=0||left>=screen.width||
+    top+boss.height*unit<=0||top>=screen.height)return;
+ const caption=$("roerichSpeech");
+ if(!caption)return;
+ boss._roerichSpeechShown=true;
+ caption.textContent="Маловато Рериха";
+ caption.hidden=false;
+ const serial=++roerichSpeechSerial;
+ fsm.TimeHandler.addEvent(function(){
+   if(game===fsm&&serial===roerichSpeechSerial)caption.hidden=true;
+ },180);
 }
 function loadEndingArt(){
  const art=window.FRIENDS_ENDING_ART||{};
@@ -726,7 +753,10 @@ function configureRenderer(fsm){
  const original=fsm.PixelDrawer.drawThingOnContext;
  fsm.PixelDrawer.drawThingOnContext=function(ctx,thing){
   if(thing===fsm.player)return drawHero(ctx,thing);
-  if(thing&&thing.title==="Bowser"&&drawRoerichBoss(ctx,thing))return;
+  if(thing&&thing.title==="Bowser"&&drawRoerichBoss(ctx,thing)){
+   maybeShowRoerichSpeech(thing,fsm);
+   return;
+  }
   if(endingArtKind(thing)&&drawEndingThing(ctx,thing))return;
   const result=original.call(this,ctx,thing);
   // Only a newly visible upward-moving fireball may start the caption.
@@ -936,6 +966,7 @@ function beginGame(){
    if(game){try{game.GamesRunner.pause();}catch(_){}}
    game=null;
    hideLavaSpeech();
+   hideRoerichSpeech();
    resetKuznechik();
    resetCheat();
    pauseKeyHeld=false;
@@ -1022,6 +1053,12 @@ function beginGame(){
    lavaCaption.hidden=true;
    lavaCaption.setAttribute("role","status");
    $("game").appendChild(lavaCaption);
+   const roerichCaption=document.createElement("div");
+   roerichCaption.id="roerichSpeech";
+   roerichCaption.textContent="Маловато Рериха";
+   roerichCaption.hidden=true;
+   roerichCaption.setAttribute("role","status");
+   $("game").appendChild(roerichCaption);
    const cheatCaption=document.createElement("div");
    cheatCaption.id="cheatSpeech";
    cheatCaption.textContent="НЕУЯЗВИМОСТЬ!";
@@ -1034,6 +1071,7 @@ function beginGame(){
    fsm.setLocation=function(){
      hideEndingThanks();
      hideLavaSpeech();
+     hideRoerichSpeech();
      return nativeLocation.apply(this,arguments);
    };
    fsm.PixelDrawer.setFramerateSkip(2);
@@ -1082,6 +1120,7 @@ function beginGame(){
 }
 function backToMenu(){
  hideLavaSpeech();
+ hideRoerichSpeech();
  resetKuznechik();
  resetCheat();
  pauseKeyHeld=false;
@@ -1095,6 +1134,7 @@ function backToMenu(){
 }
 function restart(){
  hideLavaSpeech();
+ hideRoerichSpeech();
  resetKuznechik();
  resetCheat();
  pauseKeyHeld=false;

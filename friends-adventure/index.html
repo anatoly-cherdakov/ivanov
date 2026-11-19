@@ -55,6 +55,14 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
  text-shadow:2px 2px 0 #000,0 0 1px #fff;white-space:nowrap;
 }
 .ending-thanks[hidden]{display:none!important}
+#grasshopperSpeech{
+ position:absolute;z-index:110;left:50%;top:39px;transform:translateX(-50%);
+ padding:6px 10px;border:2px solid #394c74;border-radius:6px;
+ background:#ffeda3;color:#17233d;box-shadow:2px 3px 0 #0007;
+ font:bold clamp(12px,2.7vw,16px)/1.2 Arial,sans-serif;
+ text-align:center;white-space:nowrap;pointer-events:none;max-width:96%
+}
+#grasshopperSpeech[hidden]{display:none!important}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
@@ -171,6 +179,8 @@ let face=1;
 let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
+let flowersInRow=0,flowerPlayer=null;
+let kuznechikActive=false,kuznechikSerial=0;
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
  if(!art || !art.data || !art.palette)throw Error("Pixel art data unavailable");
@@ -318,9 +328,20 @@ function drawHero(ctx,thing){
  const displayWidth=Math.round(displayHeight*0.69);
  const hitWidth=thing.width*unit;
  const px=Math.round(screenX+(hitWidth-displayWidth)/2);
- const py=Math.round(screenY+thing.height*unit-displayHeight);
+ let py=Math.round(screenY+thing.height*unit-displayHeight);
+ // Bounce the complete hero+pogo illustration, not the collision hitbox.
+ let pogoRise=0;
+ if(kuznechikActive){
+   const phase=(game.PixelDrawer.framesDrawn||0)%48;
+   pogoRise=Math.round((1-Math.cos(phase*Math.PI/24))*5);
+   py-=pogoRise;
+ }
  ctx.save();
  ctx.imageSmoothingEnabled=false;
+ if(kuznechikActive){
+    // Hero is standing ON the footrests; the machine bounces with him.
+    drawKuznechik(ctx,px,py,displayWidth,displayHeight,pogoRise);
+ }
  // The engine already gives temporary invulnerability and star music.
  // Custom character drawing must also visibly display star power.
  if(thing.star>0){
@@ -345,6 +366,87 @@ function drawHero(ctx,thing){
       ctx.fillRect(sx,sy,2,2);
    }
    ctx.restore();
+ }
+}
+// A compact pogo-stick "Kuznechik" UNDER the hero's feet, with handles at
+// hand height, metal shaft and a visible compressing spring.
+function drawKuznechik(ctx,heroX,heroY,heroWidth,heroHeight,rise){
+ const cx=Math.round(heroX+heroWidth/2);
+ const feet=Math.round(heroY+heroHeight);
+ const gripY=feet-21;
+ const restY=feet-1;
+ const compression=Math.max(0,3-Math.round(rise/3));
+ const rect=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
+ ctx.save();
+ ctx.imageSmoothingEnabled=false;
+ // Metal central stem beneath the handlebars.
+ rect(cx-2,gripY+2,5,32-compression,"#1b2a43");
+ rect(cx-1,gripY+3,2,28-compression,"#c8dbea");
+ // T-shaped handle: wide enough to project beyond the hero's body.
+ rect(cx-15,gripY,30,3,"#26364b");
+ rect(cx-15,gripY-1,8,3,"#45bc70");
+ rect(cx+7,gripY-1,8,3,"#45bc70");
+ // Both feet stand on these two pedals (at the hero's bottom).
+ rect(cx-13,restY,27,4,"#182b44");
+ rect(cx-12,restY,9,2,"#57c774");
+ rect(cx+4,restY,9,2,"#57c774");
+ // Spring visible BELOW the pedals, compressing as he bounces.
+ for(let i=0;i<4;i++){
+   const y=restY+4+i*2-compression;
+   rect(cx-4,y,9,1,"#243954");
+   rect(cx-3,y+1,7,1,"#e8edf7");
+ }
+ rect(cx-2,restY+12-compression,5,4,"#36465c");
+ rect(cx-3,restY+15-compression,7,2,"#101b2c");
+ ctx.restore();
+}
+function resetKuznechik(){
+ flowersInRow=0;
+ flowerPlayer=null;
+ kuznechikActive=false;
+ kuznechikSerial++;
+ const label=$("grasshopperSpeech");
+ if(label)label.hidden=true;
+}
+function activateKuznechik(player){
+ if(!game||player!==game.player)return;
+ kuznechikActive=true;
+ const label=$("grasshopperSpeech");
+ if(label){label.textContent="Я могу и 10 грамм";label.hidden=false;}
+ const sourceGame=game,serial=++kuznechikSerial;
+ sourceGame.TimeHandler.addEvent(()=>{
+   if(game!==sourceGame||serial!==kuznechikSerial)return;
+   kuznechikActive=false;
+   if(label)label.hidden=true;
+ },480);
+}
+function installKuznechikFlowerRule(){
+ const items=FullScreenMario.prototype.settings.objects.properties;
+ const flower=items.FireFlower;
+ if(!flower||flower._kuznechikRuleInstalled)return;
+ flower._kuznechikRuleInstalled=true;
+ const originalFlower=flower.action;
+ flower.action=function(player,item){
+   const eligible=!!(player&&player.player&&item&&!item._kuznechikCounted
+     &&game&&player.EightBitter===game);
+   const result=originalFlower.call(this,player,item);
+   if(eligible){
+     item._kuznechikCounted=true;
+     if(flowerPlayer!==player){flowerPlayer=player;flowersInRow=0;}
+     flowersInRow++;
+     if(flowersInRow>=3){flowersInRow=0;activateKuznechik(player);}
+   }
+   return result;
+ };
+ // Other collected power-ups reset the flower streak, unlike coins.
+ for(const name of ["Mushroom","Mushroom1Up","Star"]){
+   const other=items[name];
+   if(!other||typeof other.action!=="function")continue;
+   const original=other.action;
+   other.action=function(player,item){
+     if(game&&player&&player.player&&player.EightBitter===game)flowersInRow=0;
+     return original.call(this,player,item);
+   };
  }
 }
 function configureRenderer(fsm){
@@ -570,6 +672,7 @@ function beginGame(){
    padStopAll();
    if(game){try{game.GamesRunner.pause();}catch(_){}}
    game=null;
+   resetKuznechik();
    pauseKeyHeld=false;
    face=1;
    // Render 256x232 internally and scale once with CSS: 4x fewer pixels than the old 512x464 canvas.
@@ -578,6 +681,7 @@ function beginGame(){
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
    installLocalizedEndings();
+   installKuznechikFlowerRule();
    // Plants hurt only when their actual visible part above the pipe touches
    // the character. They never hurt while hidden inside the pipe.
    const piranhaSettings=FullScreenMario.prototype.settings.objects.properties.Piranha;
@@ -637,6 +741,17 @@ function beginGame(){
    endingMessage.hidden=true;
    endingMessage.setAttribute("aria-live","polite");
    $("game").appendChild(endingMessage);
+   const pogoCaption=document.createElement("div");
+   pogoCaption.id="grasshopperSpeech";
+   pogoCaption.textContent="Я могу и 10 грамм";
+   pogoCaption.hidden=true;
+   $("game").appendChild(pogoCaption);
+   // Reset the streak when entering any new level.
+   const nativeSetMap=fsm.setMap;
+   fsm.setMap=function(){
+     resetKuznechik();
+     return nativeSetMap.apply(this,arguments);
+   };
    // Clear the ending caption when the engine travels to another location.
    const nativeLocation=fsm.setLocation;
    fsm.setLocation=function(){
@@ -678,6 +793,7 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ resetKuznechik();
  pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();
@@ -688,6 +804,7 @@ function backToMenu(){
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ resetKuznechik();
  pauseKeyHeld=false;
  hideEndingThanks();
  padStopAll();

@@ -334,6 +334,42 @@ function padStopAll(){
    }
  }
 }
+/*
+ * Turbo follows the actual game actions, not a fixed 90ms key toggle:
+ * A TURBO: sustain a jump long enough to rise, release, then jump again
+ *          automatically on every landing while a finger is still down.
+ * B TURBO: continuously hold sprint; shoot again every 160ms with fire power.
+ * Both loops only exist while their pointer is active.
+ */
+function padTurboTick(state){
+ if(!padPointers.has(state.pointerId))return;
+ if(!padReady()){padStopPointer(state.pointerId);return;}
+ const player=game.player,now=Date.now();
+ if(state.name==="a-turbo"){
+   if(state.jumpHeld){
+     if(now>=state.jumpReleaseAt){
+       padRelease("Up",state.token);
+       state.jumpHeld=false;
+     }
+   }else if(now>=state.nextJumpAt && player.canjump
+      && (player.resting || game.MapScreener.underwater)){
+     padPress("Up",state.token);
+     state.jumpHeld=true;
+     state.jumpReleaseAt=now+235;
+     state.nextJumpAt=now+265;
+   }
+ }else if(state.name==="b-turbo"){
+   // Don't send a key-up while held: keeping sprint engaged also gives
+   // continuous running, even when no flower has been collected.
+   if(now>=state.nextFireAt){
+     if(player.power===3 && !player.crouching && !player.dying
+        && typeof player.fire==="function"){
+       player.fire(player);
+     }
+     state.nextFireAt=now+160;
+   }
+ }
+}
 function setupMobileController(){
  const root=$("mobileController");
  if(!root)return;
@@ -345,19 +381,18 @@ function setupMobileController(){
      const name=button.dataset.pad,action=padMapping[name];
      if(!action||padPointers.has(event.pointerId))return;
      const token=name+":"+event.pointerId;
-     const state={action,token,button,timer:null,phase:true};
+     const now=Date.now();
+     const state={
+       action,token,button,pointerId:event.pointerId,name,timer:null,
+       jumpHeld:name==="a-turbo",jumpReleaseAt:now+235,
+       nextJumpAt:now+265,nextFireAt:now+160
+     };
      padPointers.set(event.pointerId,state);
      button.classList.add("is-held");
      try{button.setPointerCapture(event.pointerId)}catch(_){}
      padPress(action,token);
      if(name.endsWith("-turbo")){
-       // 90ms on / 90ms off: ~5.5 presses per second.
-       state.timer=setInterval(()=>{
-         if(!padReady()){padStopPointer(event.pointerId);return;}
-         if(state.phase)padRelease(action,token);
-         else padPress(action,token);
-         state.phase=!state.phase;
-       },90);
+       state.timer=setInterval(()=>padTurboTick(state),32);
      }
    });
    button.addEventListener("pointerup",event=>{event.preventDefault();padStopPointer(event.pointerId)});

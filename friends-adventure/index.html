@@ -47,6 +47,14 @@ select{font:inherit;background:#1d335b;border:2px solid #88a7e0;color:#fff;paddi
 #game{position:relative;display:block;width:100%;max-width:512px;height:auto;aspect-ratio:256/232;overflow:hidden;border:0;outline:3px solid #a6b9de;border-radius:2px;background:#5c94fc;box-shadow:0 8px 25px #0007;contain:layout paint}
 #game .FullScreenMario{position:absolute!important;top:0!important;left:0!important;transform:scale(var(--game-scale,2))!important;transform-origin:0 0!important;width:256px!important;height:232px!important}
 #game canvas{image-rendering:pixelated!important}
+.ending-thanks{
+ position:absolute;z-index:100;top:34%;left:2%;width:96%;
+ pointer-events:none;text-align:center;color:#fff;
+ font-family:monospace;font-size:clamp(12px,3.4vw,17px);
+ line-height:1.5;font-weight:900;letter-spacing:-.4px;
+ text-shadow:2px 2px 0 #000,0 0 1px #fff;white-space:nowrap;
+}
+.ending-thanks[hidden]{display:none!important}
 #game #dataDisplay{font-size:11px!important}
 .duo-tip{padding:9px;font-size:12px;text-align:center;color:#baccdf}
 .duo-credit{margin:10px auto 20px;max-width:680px;text-align:center;font-size:11px;color:#8ea6c6;line-height:1.5;padding:0 12px}
@@ -149,7 +157,7 @@ body.game-active .duo-header{display:none!important}
 <!-- /build -->
 
         <!-- build:js index.min.js -->
-        <script src="photo-art.js"></script><script src="fire-art.js"></script>
+        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=8f6a9081"></script>
 <script id="duo-app">
 (function(){
 "use strict";
@@ -161,6 +169,7 @@ let drawingPatched=false;
 let face=1;
 let busy=false;
 let fireImage=null;
+const endingImages={toad:null,peach:null,star:null};
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
  if(!art || !art.data || !art.palette)throw Error("Pixel art data unavailable");
@@ -182,6 +191,70 @@ async function decodePixelArt(art){
  }
  context.putImageData(img,0,0);
  return canvas;
+}
+function loadEndingArt(){
+ const art=window.FRIENDS_ENDING_ART||{};
+ for(const key of Object.keys(endingImages)){
+   if(!art[key])continue;
+   decodePixelArt(art[key]).then(canvas=>{endingImages[key]=canvas})
+     .catch(error=>console.error("Unable to decode ending sprite",key,error));
+ }
+}
+function hideEndingThanks(){
+ const el=$("endingThanks");
+ if(el)el.hidden=true;
+}
+function showEndingThanks(){
+ const el=$("endingThanks");
+ if(!el)return;
+ el.textContent=chosen===0?"Благодарю, Ванёк!":"Спасибо, отец Анатолий!";
+ el.hidden=false;
+}
+function drawEndingThing(ctx,thing){
+ if(thing.hidden||thing.opacity<=0||thing.height<=0)return true;
+ const kind=thing.title==="Star"?"star":thing.title==="Toad"?"toad":"peach";
+ const asset=endingImages[kind];
+ if(!asset)return false; // Let the original engine sprite work while loading.
+ const unit=game.unitsize||2;
+ const x=game.PixelDrawer.getLeft(thing);
+ const y=game.PixelDrawer.getTop(thing);
+ let width=thing.width*unit, height=thing.height*unit;
+ if(kind!=="star"){
+   // Give the rescued friend and princess enough detail without altering
+   // their collision bounds or their place in the level.
+   height=Math.max(height,28);
+   width=Math.round(height*asset.width/asset.height);
+ }
+ const px=Math.round(x+(thing.width*unit-width)/2);
+ const py=Math.round(y+thing.height*unit-height);
+ ctx.save();ctx.imageSmoothingEnabled=false;
+ ctx.drawImage(asset,px,py,width,height);
+ ctx.restore();
+ return true;
+}
+function installLocalizedEndings(){
+ const klass=FullScreenMario.prototype;
+ if(klass._friendsEndingInstalled)return;
+ klass._friendsEndingInstalled=true;
+ // Preserve the engine's normal reveal timing and level transport while
+ // replacing only the first THANK YOU MARIO text with a Cyrillic overlay.
+ const textSettings=klass.settings.objects.properties.CustomText;
+ const originalTextSpawn=textSettings.onThingAdded;
+ textSettings.onThingAdded=function(thing){
+   if(thing.collectionName==="endInsideCastleText"&&thing.collectionKey==="1"){
+     thing.texts=[{text:" "}];
+   }
+   return originalTextSpawn(thing);
+ };
+ const originalNPC=klass.collideCastleNPC;
+ klass.collideCastleNPC=function(player,detector){
+   const instance=player.EightBitter;
+   // Match the original game's first 140-tick text reveal.
+   instance.TimeHandler.addEvent(function(){
+     if(game===instance&&!$("playing").hidden)showEndingThanks();
+   },140);
+   return originalNPC.call(this,player,detector);
+ };
 }
 function displayCover(){
  decodePixelArt(window.FRIENDS_PHOTO_ART).then(asset=>{
@@ -263,6 +336,9 @@ function configureRenderer(fsm){
  const original=fsm.PixelDrawer.drawThingOnContext;
  fsm.PixelDrawer.drawThingOnContext=function(ctx,thing){
   if(thing===fsm.player)return drawHero(ctx,thing);
+  if(thing&&(thing.title==="Star"||thing.title==="Toad"||thing.title==="Peach")){
+    if(drawEndingThing(ctx,thing))return;
+  }
   return original.call(this,ctx,thing);
  };
  drawingPatched=true;
@@ -433,6 +509,7 @@ function beginGame(){
    FullScreenMario.scale=1;
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
+   installLocalizedEndings();
    // Plants hurt only when their actual visible part above the pipe touches
    // the character. They never hurt while hidden inside the pipe.
    const piranhaSettings=FullScreenMario.prototype.settings.objects.properties.Piranha;
@@ -472,6 +549,18 @@ function beginGame(){
    game=window.FSM=fsm;
    $("game").textContent="";
    $("game").appendChild(fsm.container);
+   const endingMessage=document.createElement("div");
+   endingMessage.id="endingThanks";
+   endingMessage.className="ending-thanks";
+   endingMessage.hidden=true;
+   endingMessage.setAttribute("aria-live","polite");
+   $("game").appendChild(endingMessage);
+   // Clear the ending caption when the engine travels to another location.
+   const nativeLocation=fsm.setLocation;
+   fsm.setLocation=function(){
+     hideEndingThanks();
+     return nativeLocation.apply(this,arguments);
+   };
    fsm.PixelDrawer.setFramerateSkip(2);
    configureRenderer(fsm);
    const keydown=fsm.InputWriter.makePipe("onkeydown","keyCode");
@@ -506,6 +595,7 @@ function beginGame(){
  },30);
 }
 function backToMenu(){
+ hideEndingThanks();
  padStopAll();
  if(game&&!game.GamesRunner.getPaused())game.GamesRunner.pause();
  $("playing").hidden=true;
@@ -514,11 +604,13 @@ function backToMenu(){
  status("Выбери персонажа, затем нажми «Играть». Игровое время остановлено.");
 }
 function restart(){
+ hideEndingThanks();
  padStopAll();
  if(!game)return;
  game.setMap($("levelSelect").value||"1-1");
 }
 function setup(){
+ loadEndingArt();
  setupMobileController();
  if(typeof ResizeObserver==="function"){
    const gameResizeObserver=new ResizeObserver(syncGameScale);

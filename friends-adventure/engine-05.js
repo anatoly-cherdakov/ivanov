@@ -8022,7 +8022,7 @@ FullScreenMario.prototype.settings.maps = {
                         { "thing": "Stone", "x": 1504, "y": 24, "width": 24 },
                         { "thing": "Stone", "x": 1512, "y": 32, "width": 16, "height": 32 },
                         { "thing": "Stone", "x": 1512, "y": 88, "width": 88 },
-                        { "thing": "PipeHorizontal", "x": 1520, "y": 48, "width": 16 },
+                        { "thing": "PipeHorizontal", "x": 1520, "y": 48, "width": 16, "transport": 2 },
                         { "thing": "Stone", "x": 1528, "y": 88, "width": 112, "height": 88 }
                     ]
                 }, {
@@ -8845,7 +8845,7 @@ FullScreenMario.prototype.settings.maps = {
                         { "thing": "CastleBlock", "x": 512, "y": 44, "fireballs": 6, "hidden": true },
                         { "thing": "Stone", "x": 536, "y": 32, "width": 40, "height": 32 },
                         { "thing": "Stone", "x": 536, "y": 80, "width": 40, "height": 24 },
-                        { "thing": "PipeHorizontal", "x": 544, "y": 48, },
+                        { "thing": "PipeHorizontal", "x": 544, "y": 48, "transport": 5 },
                         { "thing": "Stone", "x": 552, "y": 56, "width": 24, "height": 24 }
                     ]
                 }, {

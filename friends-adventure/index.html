@@ -157,7 +157,7 @@ body.game-active .duo-header{display:none!important}
 <!-- /build -->
 
         <!-- build:js index.min.js -->
-        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=star-medallion-2"></script>
+        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=bea4702c"></script>
 <script id="duo-app">
 (function(){
 "use strict";
@@ -230,11 +230,9 @@ function drawEndingThing(ctx,thing){
  const y=game.PixelDrawer.getTop(thing);
  let width=thing.width*unit, height=thing.height*unit;
  if(kind==="star"){
-   // The previously published 20x20 balm artwork was compressed to the
-   // ordinary 14x14 star collision box and became barely recognizable.
-   // Keep its original collision box, but draw the medallion visibly
-   // at 24x24 native pixels (~48 CSS px at desktop game scale).
-   width=24;height=24;
+   // Draw the redesigned Vietnamese balm tin at its native size.
+   // Keep all original Star pickup physics and invulnerability timing.
+   width=asset.width;height=asset.height;
  }else{
    // Rescued characters keep their collision bounds and position.
    height=Math.max(height,28);

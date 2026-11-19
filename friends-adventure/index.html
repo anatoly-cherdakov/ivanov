@@ -182,7 +182,7 @@ let busy=false;
 let fireImage=null;
 const endingImages={toad:null,peach:null,star:null};
 let roerichBossImage=null,lavaSpeechSerial=0,roerichSpeechSerial=0;
-// Down -> Jump -> Left, repeated ten times, grants lasting immunity.
+// Down -> Jump -> Left, repeated ten times, toggles lasting immunity on/off.
 let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
 const cheatKeysHeld=new Set();
 let flowersInRow=0;
@@ -590,7 +590,7 @@ function resetCheat(){
 }
 function showCheatNotice(){
  const el=$("cheatSpeech");if(!el||!game)return;
- el.textContent="НЕУЯЗВИМОСТЬ!";
+ el.textContent=cheatInvulnerable?"НЕУЯЗВИМОСТЬ!":"НЕУЯЗВИМОСТЬ ОТКЛЮЧЕНА";
  el.hidden=false;
  const session=game,serial=++cheatNoticeSerial;
  // Only the notice expires; immunity has no time limit.
@@ -599,14 +599,17 @@ function showCheatNotice(){
  },180);
 }
 function recordCheatInput(action){
- if(cheatInvulnerable||!game||!game.player||$("playing").hidden
+ if(!game||!game.player||$("playing").hidden
     ||!game.GamesRunner||game.GamesRunner.getPaused())return;
  const pattern=["Down","Up","Left"];
  if(action===pattern[cheatStep]){
    if(++cheatStep===3){
      cheatStep=0;
      if(++cheatGroups===10){
-       cheatInvulnerable=true;
+       // Start a fresh count immediately in either direction; neither
+       // activation nor deactivation changes other hero power-ups.
+       cheatGroups=0;
+       cheatInvulnerable=!cheatInvulnerable;
        showCheatNotice();
      }
    }

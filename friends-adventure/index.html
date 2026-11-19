@@ -167,7 +167,7 @@ body.game-active .duo-header{display:none!important}
 <!-- /build -->
 
         <!-- build:js index.min.js -->
-        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=a25407c0"></script><script src="roerich-boss-art.js?v=c02a64ee"></script>
+        <script src="photo-art.js"></script><script src="fire-art.js"></script><script src="ending-art.js?v=a25407c0"></script><script src="roerich-boss-art.js?v=429ccfbb"></script>
 <script id="duo-app">
 (function(){
 "use strict";
@@ -314,8 +314,9 @@ function drawRoerichBoss(ctx,thing){
  const unit=game.unitsize||2;
  const x=game.PixelDrawer.getLeft(thing),y=game.PixelDrawer.getTop(thing);
  const hitWidth=thing.width*unit,hitHeight=thing.height*unit;
- // Bigger artwork with original Bowser physics and collision boundaries.
- const size=Math.round(Math.max(hitWidth,hitHeight)*1.45);
+ // Native Bowser shape and exact original size: the only changed pixels
+ // are in the hat, face, and beard. Gameplay hitbox remains untouched.
+ const size=Math.round(Math.max(hitWidth,hitHeight));
  const px=Math.round(x+(hitWidth-size)/2);
  const py=Math.round(y+hitHeight-size);
  ctx.save();ctx.imageSmoothingEnabled=false;

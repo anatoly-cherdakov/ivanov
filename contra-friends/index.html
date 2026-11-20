@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Друзья против пришельцев — 8-битная стрелялка</title>
+<meta name="description" content="Отдельная восьмибитная стрелялка с героями в чёрном и синем, качком и принцессой из приключения друзей.">
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#07101d;color:#eaf2ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 5%,#294c7c 0,#142844 35%,#06101e 80%);min-height:100vh}
+header{padding:15px 16px 6px;text-align:center}header h1{font-weight:900;font-size:clamp(20px,3vw,29px);letter-spacing:1px;color:#ffe18d;text-shadow:2px 3px #714729;margin:6px 0}header p{margin:5px 0 10px;color:#adc5e6;font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:0 12px 30px}
+#gameShell{position:relative;width:min(100%,960px);margin:auto;aspect-ratio:256/240;max-height:calc(100svh - 158px);min-height:260px;overflow:hidden;border:4px solid #657eac;background:#090f20;box-shadow:0 15px 55px #000a,0 0 0 2px #24395d;border-radius:9px}
+#screen{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#090f20}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#080e22cf;padding:16px;text-align:center;z-index:3}
+#overlay[hidden]{display:none!important}
+#menuBox{width:min(650px,100%);max-height:100%;overflow:auto;background:#102242e8;border:2px solid #92b6ed;border-radius:9px;padding:14px 12px;box-shadow:0 0 0 3px #15213e,inset 0 0 30px #071b39}
+#menuBox h2{font-size:clamp(18px,3.1vw,27px);margin:0 0 8px;color:#f6d675;text-shadow:2px 2px #7d4b28;letter-spacing:1px}
+#menuBox p{margin:8px 0;color:#e7f0ff;font-size:clamp(12px,2vw,16px);line-height:1.4}
+#menuActors{display:flex;gap:10px;justify-content:space-evenly;align-items:end;margin:8px auto 8px;max-width:370px}
+.actor{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:800;color:#dceafb}
+.actor canvas{width:68px;height:103px;image-rendering:pixelated;background:#253859;border:2px solid #87a4c6;border-radius:3px}
+#npcCanvas{width:58px;height:84px;image-rendering:pixelated;object-fit:contain;border-radius:3px}
+button{cursor:pointer;color:#f7fbff;font-weight:800;border-radius:6px;border:1px solid #a8bbdd;background:#294977;padding:10px 15px;touch-action:manipulation}
+button:focus-visible{outline:3px solid #ffdf75;outline-offset:3px}
+button:hover{background:#3d6097}.primary{background:#b23445;color:#fff6cf;border-color:#ff8d8f;font-size:17px;letter-spacing:1px}
+.primary:hover{background:#d1455b}
+#menuActions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+#menuFoot{font-size:12px!important;color:#9dbde1!important}
+#hudTop{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:12px auto;width:min(100%,960px);font-size:13px;color:#cfe0fb}
+#status{min-width:0;flex:1}#pauseBtn{font-size:13px;padding:7px 12px}
+.info{margin:6px auto 10px;width:min(960px,100%);font-size:13px;color:#b5cbee;line-height:1.6}
+kbd{border:1px solid #7089b0;background:#1c375b;padding:1px 4px;border-radius:3px;color:#fff;white-space:nowrap}
+#touch{display:none;user-select:none;-webkit-user-select:none;touch-action:none;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 14px;max-width:960px;margin:auto}
+#touch button{min-width:52px;min-height:52px;padding:6px;font-size:18px;border-radius:10px;background:#345681c9}
+.dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,50px);gap:3px}
+.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:3}.dpad .right{grid-column:3;grid-row:2}
+.actionPad{display:flex;gap:10px;align-items:center}.actionPad button{font-size:12px!important;min-width:65px!important;border-radius:50%!important;height:65px;background:#aa3547!important}
+#touchPlayer{width:100%;display:flex;align-items:center;gap:10px;justify-content:center;font-size:13px;color:#b5cbee}
+#stageNotice{font-weight:700;color:#a7ffd4}
+@media(pointer:coarse),(max-width:760px){#touch{display:flex}#touchPlayer{display:flex}#gameShell{max-height:none;min-height:180px}header{padding-top:8px}.info{font-size:12px}#menuBox{padding:9px}#menuActors{margin:4px auto}.actor canvas{width:52px;height:79px}#npcCanvas{width:45px;height:64px}}
+@media(max-width:390px){.dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,45px)}#touch button{min-width:45px;min-height:45px}.actionPad button{min-width:53px!important;height:55px}}
+</style>
+</head>
+<body>
+<header>
+<h1>ДРУЗЬЯ ПРОТИВ ПРИШЕЛЬЦЕВ</h1>
+<p>Новая восьмибитная стрелялка с героями из твоей Mario-игры</p>
+</header>
+<main>
+<div id="gameShell">
+<canvas id="screen" width="256" height="240" role="img" aria-label="Игровое поле с двумя героями"></canvas>
+<section id="overlay" aria-live="polite">
+<div id="menuBox">
+<h2 id="menuTitle">ОПЕРАЦИЯ «ДРУЗЬЯ»</h2>
+<div id="menuActors">
+<div class="actor"><canvas id="heroBlack" width="64" height="96"></canvas><span>ГЕРОЙ В ЧЁРНОМ</span></div>
+<div class="actor"><canvas id="heroBlue" width="64" height="96"></canvas><span>ГЕРОЙ В СИНЕМ</span></div>
+<div class="actor" id="menuNPC" hidden><canvas id="npcCanvas" width="36" height="52"></canvas><span id="npcLabel">СОЮЗНИК</span></div>
+</div>
+<p id="menuMessage">Два героя. Восемь опасных зон. Спаси союзников, дойди до финала и встреться с принцессой.</p>
+<div id="menuActions"><button id="startSolo" type="button">ОДИН ИГРОК</button><button id="startCoop" class="primary" type="button">ИГРАТЬ ВДВОЁМ</button><button id="continue" class="primary" type="button" hidden>ПРОДОЛЖИТЬ</button><button id="again" type="button" hidden>СНАЧАЛА</button></div>
+<p id="menuFoot">В чёрном — первый игрок; в синем — второй. Оба персонажа и спасаемые герои взяты из существующей игры.</p>
+</div>
+</section>
+</div>
+<div id="hudTop"><span id="status">Выберите режим игры.</span><span id="stageNotice"></span><button id="pauseBtn" type="button">Пауза</button></div>
+<div id="touchPlayer">Сенсорное управление: <button id="switchTouch" type="button">ИГРОК 1</button></div>
+<div id="touch">
+<div class="dpad"><button class="up" data-touch="up">▲</button><button class="left" data-touch="left">◀</button><button class="right" data-touch="right">▶</button><button class="down" data-touch="down">▼</button></div>
+<div class="actionPad"><button data-touch="jump">ПРЫЖОК</button><button data-touch="shoot">ОГОНЬ</button></div>
+</div>
+<p class="info">Первый игрок: <kbd>A</kbd> <kbd>D</kbd> движение, <kbd>W</kbd>/<kbd>S</kbd> прицел, <kbd>J</kbd> огонь, <kbd>K</kbd> прыжок. Второй: <kbd>←</kbd>/<kbd>→</kbd>, <kbd>↑</kbd>/<kbd>↓</kbd>, <kbd>1</kbd> огонь, <kbd>2</kbd> прыжок (также NumPad). <kbd>Enter</kbd> пауза/продолжение.</p>
+<p class="info">Это отдельная авторская ретро-стрелялка по мотивам Contra, а не изменённый ROM Konami: в ней свои уровни, противники и битвы. <a href="https://www.dendyemulator.ru/games/game/contra/" target="_blank" rel="noopener" style="color:#b4d5ff">Оригинальная Contra</a> доступна по ссылке.</p>
+</main>
+<script src="hero-art.js"></script>
+<script src="../friends-adventure/ending-art.js?v=a25407c0"></script>
+<script src="../friends-adventure/photo-art.js?v=52610b53"></script>
+<script src="../friends-adventure/roerich-boss-art.js?v=546b478b"></script>
+<script src="game.js"></script>
+</body>
+</html>

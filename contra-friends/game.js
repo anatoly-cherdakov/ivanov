@@ -37,7 +37,7 @@ let mode="title",stage=0,frame=0,scroll=0,duo=true,score=0,animationHandle=0;
 let players=[],enemies=[],shots=[],enemyShots=[],pickups=[],particles=[],boss=null,alerts=[];
 let gameFinished=false,lastTimestamp=0,accum=0;
 let heroImage=null,coverImage=null,allies={toad:null,peach:null,roerich:null};
-let ambientAudio=null,touchPlayer=0,pauseBefore="playing",cameraShake=0;
+let ambientAudio=null,touchPlayer=0,pauseBefore="playing",cameraShake=0,soloBlue=false;
 const keys=new Set(),touchKeys=new Set();
 const music={frequency:660};
 const starDust=["#ffe178","#7de8ff","#fe9ca8","#b1ff96"];
@@ -108,6 +108,7 @@ function setOverlay(title,message,screen,opts={}){
  $("menuNPC").hidden=!opts.npc;
  if(opts.npc){$("npcLabel").textContent=opts.npc==="peach"?"ПРИНЦЕССА":"СОЮЗНИК";drawNPC(opts.npc);}
  $("startSolo").hidden=screen!=="title";
+ $("startBlue").hidden=screen!=="title";
  $("startCoop").hidden=screen!=="title";
  $("continue").hidden=screen!=="between"&&screen!=="paused";
  $("again").hidden=screen!=="gameover"&&screen!=="victory";
@@ -117,8 +118,8 @@ function setOverlay(title,message,screen,opts={}){
 }
 function player(id){return{id,px:26+id*20,y:GROUND-27,w:14,h:27,vx:0,vy:0,dir:1,aim:0,lives:4,points:0,weapon:"R",invuln:110,dead:false,onGround:true,jumping:false,lastShot:0,anim:0,deathFrame:0};}
 function initGame(isTwo){
- duo=!!isTwo;score=0;stage=0;gameFinished=false;frame=0;
- players=[player(0)];if(duo)players.push(player(1));
+ duo=!!isTwo;soloBlue=!!arguments[1]&&!duo;score=0;stage=0;gameFinished=false;frame=0;
+ players=duo?[player(0),player(1)]:[player(soloBlue?1:0)];
  startStage();
 }
 function groundAt(wx){
@@ -160,7 +161,7 @@ function startStage(){
 function soundStage(){beep(330,.08);setTimeout(()=>beep(475,.07),110);}
 function deadPlayers(){return players.filter(p=>!p.dead&&p.lives>0)}
 function controls(p){
- const mapping=(p.id===0?control1:control2);const has=name=>mapping[name].some(k=>keys.has(k))||touchKeys.has(p.id+":"+name);
+ const mapping=(p.id===0||!duo?control1:control2);const has=name=>mapping[name].some(k=>keys.has(k))||touchKeys.has((duo?p.id:touchPlayer)+":"+name);
  return Object.fromEntries(Object.keys(mapping).map(name=>[name,has(name)]));
 }
 function collision(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
@@ -259,7 +260,7 @@ function updateShots(){
    if(b.life<=0||b.y<14||b.y>H-7||b.x<scroll-10||b.x>scroll+W+10){b.dead=true;continue;}
    for(const e of enemies){if(e.dead)continue;if(collision(b,e)){e.hp-=b.power;b.dead=true;
      addSpark(b.x,b.y,"#ffda80",4);
-     if(e.hp<=0){e.dead=true;score+=100;players[b.owner].points+=100;addSpark(e.x+7,e.y+7,"#ffb16c",11);beep(155,.09,"sawtooth",.012);}break;}}
+     if(e.hp<=0){e.dead=true;score+=100;const owner=players.find(p=>p.id===b.owner);if(owner)owner.points+=100;addSpark(e.x+7,e.y+7,"#ffb16c",11);beep(155,.09,"sawtooth",.012);}break;}}
    if(boss&&!b.dead&&boss.hp>0&&collision(b,boss)){b.dead=true;boss.hp-=b.power;addSpark(b.x,b.y,"#bce8ff",3);
     if(boss.hp<=0){boss.hp=0;score+=4000+stage*800;cameraShake=15;addSpark(boss.x+24,boss.y+30,"#ffb68a",65);beep(155,.5,"sawtooth",.06);
       finishStage();}}
@@ -276,7 +277,7 @@ function finishStage(){
  if(mode!=="playing")return;
  for(const p of players)if(!p.dead){p.invuln=180;p.points+=300;}
  const final=stage===7;
- if(final){gameFinished=true;setOverlay("ТЫ СТАЛ ВОИНОМ.","Ты стал воином. Приглашаю тебя в подготовишку.","victory",{npc:"peach"});}
+ if(final){gameFinished=true;const gratitude=duo?"Благодарю, Ванёк! Спасибо, отец Анатолий!":soloBlue?"Спасибо, отец Анатолий!":"Благодарю, Ванёк!";setOverlay("ПОБЕДА!",gratitude+" Ты стал воином. Приглашаю тебя в подготовишку.","victory",{npc:"peach"});}
  else{const line=phrases[stage]||"Союзник, возьми меня с собой!";
   setOverlay("ЭТАП "+(stage+1)+" ПРОЙДЕН",line,"between",{npc:"toad"});}
  beep(740,.15,"triangle",.055);setTimeout(()=>beep(920,.21,"triangle",.047),160);
@@ -506,12 +507,13 @@ function animate(ts){
 }
 function releaseTouch(){touchKeys.clear();for(const b of document.querySelectorAll("[data-touch]"))b.style.opacity="";}
 function installEvents(){
- $("startSolo").onclick=()=>{releaseTouch();initGame(false);};
+ $("startSolo").onclick=()=>{releaseTouch();touchPlayer=0;initGame(false,false);};
+ $("startBlue").onclick=()=>{releaseTouch();touchPlayer=0;initGame(false,true);};
  $("startCoop").onclick=()=>{releaseTouch();initGame(true);};
  $("continue").onclick=nextStage;
  $("again").onclick=()=>{setOverlay("ОПЕРАЦИЯ «ДРУЗЬЯ»","Начни новую миссию с теми же героями.","title");stage=0;};
  $("pauseBtn").onclick=pauseGame;
- $("switchTouch").onclick=()=>{touchPlayer=1-touchPlayer;$("switchTouch").textContent="ИГРОК "+(touchPlayer+1);releaseTouch();};
+ $("switchTouch").onclick=()=>{if(!duo)return;touchPlayer=1-touchPlayer;$("switchTouch").textContent="ИГРОК "+(touchPlayer+1);releaseTouch();};
  document.addEventListener("keydown",e=>{
   const code=e.code||e.key;
   if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","Enter"].includes(code))e.preventDefault();
@@ -526,7 +528,7 @@ function installEvents(){
  for(const element of document.querySelectorAll("[data-touch]")){
   const input=element.dataset.touch;
   const on=e=>{e.preventDefault();const token=touchPlayer+":"+input;touchKeys.add(token);element.style.opacity="1";if(element.setPointerCapture)element.setPointerCapture(e.pointerId);};
-  const off=e=>{e.preventDefault();touchKeys.delete(touchPlayer+":"+input);element.style.opacity="";};
+  const off=e=>{e.preventDefault();touchKeys.delete("0:"+input);touchKeys.delete("1:"+input);element.style.opacity="";};
   element.addEventListener("pointerdown",on,{passive:false});
   for(const type of ["pointerup","pointercancel","lostpointercapture"])element.addEventListener(type,off,{passive:false});
  }

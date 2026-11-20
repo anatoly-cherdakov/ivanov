@@ -419,7 +419,8 @@ function drawPlayer(p){
 function drawGrunt(e){
  const x=Math.round(e.x-scroll),y=Math.round(e.y);
  if(x<-30||x>W+30)return;
- ctx.save();if(e.dir===1){ctx.translate(x+e.w,0);ctx.scale(-1,1);}
+ ctx.save();ctx.translate(x,0);
+ if(e.dir===1){ctx.translate(e.w,0);ctx.scale(-1,1);}
  if(e.kind==="drone"){
   fill(0,y+4,13,5,"#e7a37a");fill(2,y,9,5,"#bb567a");
   fill(-5,y+4,6,3,"#527f89");fill(12,y+4,5,3,"#527f89");

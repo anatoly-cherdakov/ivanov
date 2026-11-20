@@ -1,82 +1,115 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Друзья против пришельцев — 8-битная стрелялка</title>
-<meta name="description" content="Отдельная восьмибитная стрелялка с героями в чёрном и синем, качком и принцессой из приключения друзей.">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Два друга — Contra (NES)</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#07101d;color:#eaf2ff}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 5%,#294c7c 0,#142844 35%,#06101e 80%);min-height:100vh}
-header{padding:15px 16px 6px;text-align:center}header h1{font-weight:900;font-size:clamp(20px,3vw,29px);letter-spacing:1px;color:#ffe18d;text-shadow:2px 3px #714729;margin:6px 0}header p{margin:5px 0 10px;color:#adc5e6;font-size:13px}
-main{max-width:1100px;margin:0 auto;padding:0 12px 30px}
-#gameShell{position:relative;width:min(100%,960px);margin:auto;aspect-ratio:256/240;max-height:calc(100svh - 158px);min-height:260px;overflow:hidden;border:4px solid #657eac;background:#090f20;box-shadow:0 15px 55px #000a,0 0 0 2px #24395d;border-radius:9px}
-#screen{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#090f20}
-#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#080e22cf;padding:16px;text-align:center;z-index:3}
-#overlay[hidden]{display:none!important}
-#menuBox{width:min(650px,100%);max-height:100%;overflow:auto;background:#102242e8;border:2px solid #92b6ed;border-radius:9px;padding:14px 12px;box-shadow:0 0 0 3px #15213e,inset 0 0 30px #071b39}
-#menuBox h2{font-size:clamp(18px,3.1vw,27px);margin:0 0 8px;color:#f6d675;text-shadow:2px 2px #7d4b28;letter-spacing:1px}
-#menuBox p{margin:8px 0;color:#e7f0ff;font-size:clamp(12px,2vw,16px);line-height:1.4}
-#menuActors{display:flex;gap:10px;justify-content:space-evenly;align-items:end;margin:8px auto 8px;max-width:370px}
-.actor{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:800;color:#dceafb}
-.actor canvas{width:68px;height:103px;image-rendering:pixelated;background:#253859;border:2px solid #87a4c6;border-radius:3px}
-#npcCanvas{width:58px;height:84px;image-rendering:pixelated;object-fit:contain;border-radius:3px}
-button{cursor:pointer;color:#f7fbff;font-weight:800;border-radius:6px;border:1px solid #a8bbdd;background:#294977;padding:10px 15px;touch-action:manipulation}
-button:focus-visible{outline:3px solid #ffdf75;outline-offset:3px}
-button:hover{background:#3d6097}.primary{background:#b23445;color:#fff6cf;border-color:#ff8d8f;font-size:17px;letter-spacing:1px}
-.primary:hover{background:#d1455b}
-#menuActions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px}
-#menuFoot{font-size:12px!important;color:#9dbde1!important}
-#hudTop{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:12px auto;width:min(100%,960px);font-size:13px;color:#cfe0fb}
-#status{min-width:0;flex:1}#pauseBtn{font-size:13px;padding:7px 12px}
-.info{margin:6px auto 10px;width:min(960px,100%);font-size:13px;color:#b5cbee;line-height:1.6}
-kbd{border:1px solid #7089b0;background:#1c375b;padding:1px 4px;border-radius:3px;color:#fff;white-space:nowrap}
-#touch{display:none;user-select:none;-webkit-user-select:none;touch-action:none;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 14px;max-width:960px;margin:auto}
-#touch button{min-width:52px;min-height:52px;padding:6px;font-size:18px;border-radius:10px;background:#345681c9}
-.dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,50px);gap:3px}
-.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:3}.dpad .right{grid-column:3;grid-row:2}
-.actionPad{display:flex;gap:10px;align-items:center}.actionPad button{font-size:12px!important;min-width:65px!important;border-radius:50%!important;height:65px;background:#aa3547!important}
-#touchPlayer{width:100%;display:flex;align-items:center;gap:10px;justify-content:center;font-size:13px;color:#b5cbee}
-#stageNotice{font-weight:700;color:#a7ffd4}
-@media(pointer:coarse),(max-width:760px){#touch{display:flex}#touchPlayer{display:flex}#gameShell{max-height:none;min-height:180px}header{padding-top:8px}.info{font-size:12px}#menuBox{padding:9px}#menuActors{margin:4px auto}.actor canvas{width:52px;height:79px}#npcCanvas{width:45px;height:64px}}
-@media(max-width:390px){.dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,45px)}#touch button{min-width:45px;min-height:45px}.actionPad button{min-width:53px!important;height:55px}}
+:root{color-scheme:dark;font:16px system-ui,Arial,sans-serif;background:#070b12;color:#f2f5ff}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;background:linear-gradient(#162943,#070b12 55%)}
+header{text-align:center;padding:12px 10px 7px}h1{font-size:clamp(21px,4vw,30px);margin:4px 0;color:#ffdf87}
+header p{font-size:13px;color:#b4c6da;margin:3px 0}main{width:min(900px,100%);margin:auto;padding:6px 10px 30px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:8px auto}
+button,.upload{touch-action:manipulation;border:1px solid #6e89ad;color:white;background:#203958;border-radius:8px;padding:10px 13px;font:700 14px system-ui;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.upload{background:#276c53;border-color:#54b28a;display:inline-block}
+.upload input{display:none}#msg{font-size:13px;line-height:1.4;text-align:center;min-height:20px;color:#cbd6ea;margin:6px auto 10px}
+#holder{position:relative;margin:auto;width:min(100%,768px);aspect-ratio:256/240;background:#02050b;border:3px solid #637aa0;box-shadow:0 10px 40px #000b;overflow:hidden;image-rendering:pixelated}
+#nes,#placeholder{position:absolute;inset:0;width:100%;height:100%}
+#nes canvas{width:100%!important;height:100%!important;object-fit:fill;image-rendering:pixelated;display:block}
+#placeholder{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;text-align:center;background:#050b18;color:#a9c5dd}
+#placeholder strong{font-size:clamp(18px,3vw,30px);color:#ffe086;margin-bottom:10px}
+.pad{max-width:768px;margin:12px auto;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;user-select:none;-webkit-user-select:none}
+.dpad{display:grid;grid-template-columns:repeat(3,clamp(48px,14vw,68px));grid-template-rows:repeat(3,clamp(44px,12vw,60px));justify-content:start;gap:4px}
+.dpad button{padding:0;font-size:26px}.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:2}.dpad .right{grid-column:3;grid-row:2}
+.mid{display:flex;flex-direction:column;gap:10px;align-items:center}
+.mid button{font-size:11px;padding:9px 7px}
+.action{display:flex;gap:9px;align-items:center;justify-content:end}
+.action button{width:clamp(49px,14vw,80px);height:clamp(49px,14vw,80px);border-radius:50%;background:#8b3046;border-color:#f07786;font-size:19px}
+.pad button:active,.pad button.pressed{background:#d19c34;transform:scale(.97)}
+.info{max-width:768px;margin:10px auto;color:#a9bbcf;font-size:13px;line-height:1.5}
+.info strong{color:white}#playerSelect{min-width:120px}
+@media(max-width:490px){.pad{gap:4px}.dpad{grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px)}.action{gap:5px}.action button{width:49px;height:49px}.mid button{font-size:10px;padding:8px 4px}}
 </style>
 </head>
 <body>
-<header>
-<h1>ДРУЗЬЯ ПРОТИВ ПРИШЕЛЬЦЕВ</h1>
-<p>Новая восьмибитная стрелялка с героями из твоей Mario-игры</p>
-</header>
+<header><h1>ДВА ДРУГА — CONTRA</h1><p>Настоящая NES-игра через эмулятор. Не самодельная замена уровней.</p></header>
 <main>
-<div id="gameShell">
-<canvas id="screen" width="256" height="240" role="img" aria-label="Игровое поле с двумя героями"></canvas>
-<section id="overlay" aria-live="polite">
-<div id="menuBox">
-<h2 id="menuTitle">ОПЕРАЦИЯ «ДРУЗЬЯ»</h2>
-<div id="menuActors">
-<div class="actor"><canvas id="heroBlack" width="64" height="96"></canvas><span>ГЕРОЙ В ЧЁРНОМ</span></div>
-<div class="actor"><canvas id="heroBlue" width="64" height="96"></canvas><span>ГЕРОЙ В СИНЕМ</span></div>
-<div class="actor" id="menuNPC" hidden><canvas id="npcCanvas" width="36" height="52"></canvas><span id="npcLabel">СОЮЗНИК</span></div>
+<div class="toolbar">
+<label class="upload">Открыть Contra (.nes)<input id="rom" type="file" accept=".nes,.bin,application/octet-stream"></label>
+<button id="pause" disabled>Пауза</button>
+<button id="reset" disabled>Перезапуск</button>
+<button id="full">Полный экран</button>
+<select id="playerSelect" aria-label="Сенсорное управление игрока" style="background:#203958;color:white;padding:10px;border-radius:8px"><option value="1">Игрок 1</option><option value="2">Игрок 2</option></select>
 </div>
-<p id="menuMessage">Два героя. Восемь опасных зон. Спаси союзников, дойди до финала и встреться с принцессой.</p>
-<div id="menuActions"><button id="startSolo" type="button">ОДИН ИГРОК</button><button id="startCoop" class="primary" type="button">ИГРАТЬ ВДВОЁМ</button><button id="continue" class="primary" type="button" hidden>ПРОДОЛЖИТЬ</button><button id="again" type="button" hidden>СНАЧАЛА</button></div>
-<p id="menuFoot">В чёрном — первый игрок; в синем — второй. Оба персонажа и спасаемые герои взяты из существующей игры.</p>
+<div id="msg" role="status">Выбери файл своей копии Contra для NES. Файл остаётся в твоём браузере.</div>
+<div id="holder">
+ <div id="nes"></div>
+ <div id="placeholder"><strong>CONTRA · NES</strong><span>Загрузи файл .nes — оригинальные уровни, музыка и механика запустятся без изменений.</span></div>
 </div>
-</section>
+<div class="pad" id="touchControls">
+ <div class="dpad">
+  <button class="up" data-key="UP" aria-label="Вверх">▲</button>
+  <button class="left" data-key="LEFT" aria-label="Влево">◀</button>
+  <button class="down" data-key="DOWN" aria-label="Вниз">▼</button>
+  <button class="right" data-key="RIGHT" aria-label="Вправо">▶</button>
+ </div>
+ <div class="mid"><button data-key="SELECT">SELECT</button><button data-key="START">START</button></div>
+ <div class="action"><button data-key="B" aria-label="Стрельба">B</button><button data-key="A" aria-label="Прыжок">A</button></div>
 </div>
-<div id="hudTop"><span id="status">Выберите режим игры.</span><span id="stageNotice"></span><button id="pauseBtn" type="button">Пауза</button></div>
-<div id="touchPlayer">Сенсорное управление: <button id="switchTouch" type="button">ИГРОК 1</button></div>
-<div id="touch">
-<div class="dpad"><button class="up" data-touch="up">▲</button><button class="left" data-touch="left">◀</button><button class="right" data-touch="right">▶</button><button class="down" data-touch="down">▼</button></div>
-<div class="actionPad"><button data-touch="jump">ПРЫЖОК</button><button data-touch="shoot">ОГОНЬ</button></div>
-</div>
-<p class="info">Первый игрок: <kbd>A</kbd> <kbd>D</kbd> движение, <kbd>W</kbd>/<kbd>S</kbd> прицел, <kbd>J</kbd> огонь, <kbd>K</kbd> прыжок. Второй: <kbd>←</kbd>/<kbd>→</kbd>, <kbd>↑</kbd>/<kbd>↓</kbd>, <kbd>1</kbd> огонь, <kbd>2</kbd> прыжок (также NumPad). <kbd>Enter</kbd> пауза/продолжение.</p>
-<p class="info">Это отдельная авторская ретро-стрелялка по мотивам Contra, а не изменённый ROM Konami: в ней свои уровни, противники и битвы. <a href="https://www.dendyemulator.ru/games/game/contra/" target="_blank" rel="noopener" style="color:#b4d5ff">Оригинальная Contra</a> доступна по ссылке.</p>
+<div class="info"><strong>Управление:</strong> стрелки — движение, Z — стрельба (B), X — прыжок (A), Enter — START, Shift — SELECT. Доступны геймпады и сенсорные кнопки. Чтобы выбрать двух игроков, используй SELECT на заставке Contra. Изображение и игровой процесс берутся из загруженного ROM, а не из старой игры <code>game.js</code>.</div>
 </main>
-<script src="hero-art.js"></script>
-<script src="../friends-adventure/ending-art.js?v=a25407c0"></script>
-<script src="../friends-adventure/photo-art.js?v=52610b53"></script>
-<script src="../friends-adventure/roerich-boss-art.js?v=546b478b"></script>
-<script src="game.js"></script>
-</body>
-</html>
+<script src="https://unpkg.com/jsnes@2/dist/jsnes.min.js"></script>
+<script>
+(function(){
+"use strict";
+const el=id=>document.getElementById(id),msg=el("msg");
+let browser=null,paused=false,loaded=false;
+const keys=new Map(), names=["A","B","SELECT","START","UP","DOWN","LEFT","RIGHT"];
+function status(t){msg.textContent=t}
+function releaseAll(){if(!browser||!loaded)return;for(const [k,player] of keys){const code=jsnes.Controller["BUTTON_"+k];if(code!==undefined)browser.nes.buttonUp(player,code)}keys.clear();document.querySelectorAll(".pressed").forEach(e=>e.classList.remove("pressed"))}
+function press(key,down,button){
+ if(!browser||!loaded||paused)return;
+ const player=Number(el("playerSelect").value),code=jsnes.Controller["BUTTON_"+key];
+ if(!names.includes(key)||code===undefined)return;
+ const old=keys.get(key);
+ if(down){if(old===player)return;if(old)browser.nes.buttonUp(old,code);browser.nes.buttonDown(player,code);keys.set(key,player)}
+ else{if(old)browser.nes.buttonUp(old,code);keys.delete(key)}
+ if(button)button.classList.toggle("pressed",down);
+}
+function ensureBrowser(){
+ if(typeof jsnes==="undefined"||!jsnes.Browser){status("Не удалось загрузить эмулятор. Проверь соединение с интернетом.");return false}
+ if(browser)return true;
+ browser=new jsnes.Browser({container:el("nes"),onError:e=>{status("Ошибка эмулятора: "+(e.message||e));console.error(e)}});
+ return true;
+}
+el("rom").addEventListener("change",async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  if(bytes.length<16||String.fromCharCode(...bytes.subarray(0,4))!=="NES\x1a")throw Error("Файл не распознан как NES ROM (неверный заголовок iNES).");
+  if(!ensureBrowser())return;
+  releaseAll();browser.loadROM(bytes);loaded=true;paused=false;
+  el("pause").disabled=false;el("reset").disabled=false;el("pause").textContent="Пауза";
+  el("placeholder").hidden=true;status("ROM загружен: "+file.name+". Нажми START, чтобы начать.");
+ }catch(err){status("Не удалось запустить: "+(err.message||err));console.error(err)}
+});
+el("pause").addEventListener("click",()=>{
+ if(!browser||!loaded)return;
+ if(!paused){releaseAll();browser.stop();paused=true;el("pause").textContent="Продолжить";status("Пауза")}
+ else{browser.start();paused=false;el("pause").textContent="Пауза";status("Игра продолжается")}
+});
+el("reset").addEventListener("click",()=>{if(!browser||!loaded)return;releaseAll();browser.nes.reset();if(paused){paused=false;browser.start();el("pause").textContent="Пауза"}status("Игра перезапущена")});
+el("full").addEventListener("click",()=>{const h=el("holder");if(document.fullscreenElement)document.exitFullscreen?.();else h.requestFullscreen?.().catch(()=>{})});
+el("playerSelect").addEventListener("change",releaseAll);
+document.querySelectorAll("[data-key]").forEach(b=>{
+ const k=b.dataset.key;
+ b.addEventListener("pointerdown",e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);press(k,true,b)});
+ ["pointerup","pointercancel","lostpointercapture"].forEach(type=>b.addEventListener(type,e=>{e.preventDefault();press(k,false,b)}));
+});
+const mapping={ArrowUp:"UP",ArrowDown:"DOWN",ArrowLeft:"LEFT",ArrowRight:"RIGHT",KeyZ:"B",KeyX:"A",Enter:"START",ShiftRight:"SELECT",ShiftLeft:"SELECT"};
+document.addEventListener("keydown",e=>{const k=mapping[e.code];if(!k)return;e.preventDefault();if(!e.repeat)press(k,true)});
+document.addEventListener("keyup",e=>{const k=mapping[e.code];if(k){e.preventDefault();press(k,false)}});
+window.addEventListener("blur",releaseAll);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAll()});
+})();
+</script>
+</body></html>

@@ -708,6 +708,9 @@ function installKuznechikDamageRule(){
    const activeHit=!!(game&&player&&player===game.player&&player.player
       &&player.EightBitter===game&&player.alive
       &&!player.dead&&!player.dying&&!player.flickering);
+   // A real hit resets unfinished FireFlower progress too. Star pickups
+   // never call this damage branch, so they preserve the streak.
+   if(activeHit&&!kuznechikActive&&flowersInRow>0)flowersInRow=0;
    if(activeHit&&kuznechikActive){
       // A normal hit breaks the Kuznechik, but must NOT shrink the hero,
       // reduce power from 3 to 1, remove fireballs, or consume a life.

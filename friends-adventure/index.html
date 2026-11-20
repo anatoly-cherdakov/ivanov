@@ -747,8 +747,10 @@ function installKuznechikFlowerRule(){
    }
    return result;
  };
- // Other collected power-ups reset the flower streak, unlike coins.
- for(const name of ["Mushroom","Mushroom1Up","Star"]){
+ // Star power is protection, not damage: collecting a star must not
+ // interrupt the FireFlower streak. Actual damage still resets the counter.
+ // Keep the existing Mushroom and Mushroom1Up behavior unchanged.
+ for(const name of ["Mushroom","Mushroom1Up"]){
    const other=items[name];
    if(!other||typeof other.action!=="function")continue;
    const original=other.action;

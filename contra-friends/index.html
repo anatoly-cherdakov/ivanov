@@ -18,6 +18,7 @@ const img=ctx.createImageData(256,240),rgba=new Uint32Array(img.data.buffer);con
 const portrait=new Image(), blackBlue=new Image(), muscle=new Image(), princess=new Image();
 const art={hero:false,muscle:false,princess:false};
 blackBlue.onload=()=>{art.hero=true};blackBlue.src=window.CONTRA_FRIENDS_HERO_SHEET||"";
+portrait.onload=()=>{};portrait.src=document.querySelector('header img')?.src||'';
 function artSrc(name){return (window.FRIENDS_ENDING_ART||{})[name]||""}
 if(artSrc("toad")){muscle.onload=()=>{art.muscle=true};muscle.src=artSrc("toad")}
 if(artSrc("peach")){princess.onload=()=>{art.princess=true};princess.src=artSrc("peach")}
@@ -29,13 +30,13 @@ function showNotice(s){stageMessage=s;messageUntil=performance.now()+3600}
 function overlayGraphics(){
  if(!live())return; const m=nes.cpu.mem;ctx.imageSmoothingEnabled=false;
  if(m[0x18]<=2){
-   if(art.hero){ctx.fillStyle="#060914";ctx.fillRect(66,180,124,44);ctx.drawImage(blackBlue,0,0,320,96,82,183,32,40);ctx.drawImage(blackBlue,0,96,320,96,138,183,32,40);}
+   if(portrait.complete&&portrait.naturalWidth){ctx.save();ctx.fillStyle='#081126';ctx.fillRect(162,111,76,39);ctx.drawImage(portrait,117,20,181,198,165,111,35,39);ctx.drawImage(portrait,470,0,176,190,200,111,35,39);ctx.restore();}
    return;
  }
  if(inGame()&&art.hero){
    for(let p=0;p<2;p++){
      const x=m[0x334+p],y=m[0x31a+p],state=m[0x90+p];
-     if(!state||x<3||x>249||y<15||y>231||m[0xba+p])continue;
+     if(state!==1&&state!==3||x<3||x>249||y<15||y>231||m[0xba+p])continue;
      const running=m[0x98+p]!==0;
      const pose=(m[0xa0+p]!==0)?3:(running?1+((m[0x1a]>>3)&1):0);
      const flip=(m[0xd8+p]&0x40)!==0;
@@ -67,15 +68,19 @@ function installSpriteReplacement(){
  const ppu=nes.ppu, originalDMA=ppu.sramDMA.bind(ppu);
  ppu.sramDMA=function(page){
    originalDMA(page);
-   if(!art.hero||!inGame())return;
+   if(!inGame()){
+     if(nes.cpu.mem[0x18]<=2){for(let n=0;n<64;n++){if(ppu.sprX[n]>=174&&ppu.sprX[n]<=218&&ppu.sprY[n]>=110&&ppu.sprY[n]<=151){ppu.sprY[n]=250}}}
+     return;
+   }
+   if(!art.hero)return;
    const m=nes.cpu.mem;
    for(let p=0;p<2;p++){
      const x=m[0x334+p],y=m[0x31a+p],state=m[0x90+p];
-     if(!state||x<3||x>249||y<15||y>231||m[0xba+p])continue;
+     if(state!==1&&state!==3||x<3||x>249||y<15||y>231||m[0xba+p])continue;
      for(let n=0;n<64;n++){
        const dx=Math.abs(ppu.sprX[n]-x),dy=Math.abs(ppu.sprY[n]-y);
        if(dx<20&&dy<24&&(ppu.sprCol[n]>>2)<=1){
-         ppu.sprY[n]=250; // invisible; image replacement added to final canvas
+         ppu.sprY[n]=250; // hide only the matching original player tiles
        }
      }
    }
@@ -89,7 +94,7 @@ function setKey(name,down){if(!nes)return;const n=buttons[name];if(n===undefined
 function pulse(k){setKey(k,true);setTimeout(()=>setKey(k,false),85);prepareAudio()}
 function build(){if(!window.jsnes||!jsnes.NES){error('Не удалось загрузить jsnes. Для первого запуска требуется подключение к интернету.');return;}nes=new jsnes.NES({onFrame:frame,onAudioSample:soundSample,sampleRate:44100});const str=atob(ROM);nes.loadROM(str);installSpriteReplacement();playing=true;status.textContent='Оригинальная Contra загружена. START — начать игру.';let last=performance.now(),acc=0;function loop(now){if(playing){acc+=Math.min((now-last)/1000,.10);let count=0;while(acc>=1/60&&count<5){nes.frame();acc-=1/60;count++}}last=now;requestAnimationFrame(loop)}requestAnimationFrame(loop)}
 window.addEventListener('load',()=>{try{build()}catch(e){error(e)}});
-document.getElementById('player').onclick=e=>{for(const k of Array.from(held))setKey(k,false);activePlayer=activePlayer===1?2:1;e.target.textContent='Управление: игрок '+activePlayer};document.getElementById('start').onclick=()=>pulse('START');document.getElementById('select').onclick=()=>pulse('SELECT');document.getElementById('reset').onclick=()=>{if(nes){held.clear();nes.reset();status.textContent='Игра перезапущена.'}};document.getElementById('sound').onclick=e=>{muted=!muted;e.target.textContent=muted?'Звук: выкл.':'Звук: вкл.';if(audio){if(muted)audio.suspend();else audio.resume()}else if(!muted)prepareAudio()};
+document.getElementById('player').onclick=e=>{for(const k of Array.from(held))setKey(k,false);activePlayer=activePlayer===1?2:1;e.target.textContent='Управление: игрок '+activePlayer};document.getElementById('start').onclick=()=>pulse('START');document.getElementById('select').onclick=()=>pulse('SELECT');document.getElementById('reset').onclick=()=>{if(nes){held.clear();nes.reset();lastStage=-1;finishShown=false;stageMessage='';messageUntil=0;status.textContent='Игра перезапущена.'}};document.getElementById('sound').onclick=e=>{muted=!muted;e.target.textContent=muted?'Звук: выкл.':'Звук: вкл.';if(audio){if(muted)audio.suspend();else audio.resume()}else if(!muted)prepareAudio()};
 const keyMap={ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',KeyZ:'B',KeyX:'A',Enter:'START',ShiftLeft:'SELECT',ShiftRight:'SELECT'};document.addEventListener('keydown',e=>{const k=keyMap[e.code];if(k){e.preventDefault();setKey(k,true);prepareAudio()}});document.addEventListener('keyup',e=>{const k=keyMap[e.code];if(k){e.preventDefault();setKey(k,false)}});window.addEventListener('blur',()=>{for(const k of Array.from(held))setKey(k,false)});
 for(const b of document.querySelectorAll('[data-button]')){const k=b.dataset.button;const down=e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);setKey(k,true);b.classList.add('down');prepareAudio()};const up=e=>{e.preventDefault();setKey(k,false);b.classList.remove('down')};b.addEventListener('pointerdown',down);for(const type of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(type,up)}
 })();

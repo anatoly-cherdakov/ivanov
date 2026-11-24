@@ -494,6 +494,14 @@ function selectHero(person){
  $("startButton").disabled=!(heroImage.complete&&heroImage.naturalWidth);
  status(person===0?"Герой в чёрной ушанке выбран. Нажми «Играть».":"Герой в синей куртке выбран. Нажми «Играть».");
 }
+let starHeroCanvas=null;
+function getStarHeroCanvas(){
+ if(!starHeroCanvas){
+   const make=()=>{const c=document.createElement("canvas");c.width=c.height=48;return c;};
+   starHeroCanvas={sprite:make(),glow:make()};
+ }
+ return starHeroCanvas;
+}
 function drawHero(ctx,thing){
  if(!thing||thing.hidden||thing.opacity<=0||thing.height<1||thing.width<1)return;
  const unit=game.unitsize||2;
@@ -530,21 +538,47 @@ function drawHero(ctx,thing){
     // Hero is standing ON the footrests; the machine bounces with him.
     drawKuznechik(ctx,px,py,displayWidth,displayHeight,pogoRise);
  }
- // The engine already gives temporary invulnerability and star music.
- // Custom character drawing must also visibly display star power.
- if(thing.star>0){
-    const colors=["#ffe95c","#75f7ff","#ffc6f7","#c5ff83"];
-    const tick=Math.floor((game.PixelDrawer.framesDrawn||0)/5);
-    ctx.shadowBlur=7;
-    ctx.shadowColor=colors[tick%colors.length];
-    ctx.filter="brightness(1.28) saturate(1.8) hue-rotate("+((tick%4)*65)+"deg)";
+ // The flagpole sets star=true ONLY as a cutscene collision guard.
+ // A real collected star uses a numeric counter; never light the cutscene.
+ const visibleStar=typeof thing.star==="number"&&thing.star>0;
+ function paintCharacter(target,x,y){
+   if(flightActive){
+     drawFlightHero(target,x,y,displayWidth,displayHeight,thing,sprite,sourceWidth,sourceHeight);
+   }else{
+     target.save();
+     if(face===-1){target.translate(x+displayWidth,0);target.scale(-1,1);x=0;}
+     target.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,x,y,displayWidth,displayHeight);
+     target.restore();
+   }
  }
- if(flightActive){
-   drawFlightHero(ctx,px,py,displayWidth,displayHeight,thing,sprite,sourceWidth,sourceHeight);
- }else if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,0,py,displayWidth,displayHeight);}
- else ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,px,py,displayWidth,displayHeight);
+ if(visibleStar){
+   // Draw the whole character once into a tiny transparent buffer. Tint
+   // and outline it with cheap compositing, not a GPU filter and blur for
+   // every polygon of the flying sprite. The real star still flashes.
+   const tick=Math.floor((game.PixelDrawer.framesDrawn||0)/5);
+   const colors=["#ffe95c","#75f7ff","#ffc6f7","#c5ff83"];
+   const color=colors[tick%colors.length];
+   const surface=getStarHeroCanvas(),g=surface.sprite.getContext("2d"),
+     glow=surface.glow.getContext("2d"),margin=8;
+   g.clearRect(0,0,48,48);
+   g.imageSmoothingEnabled=false;
+   paintCharacter(g,margin,margin);
+   g.save();g.globalCompositeOperation="source-atop";g.globalAlpha=.34;
+   g.fillStyle=color;g.fillRect(0,0,48,48);g.restore();
+   glow.clearRect(0,0,48,48);
+   glow.drawImage(surface.sprite,0,0);
+   glow.save();glow.globalCompositeOperation="source-in";
+   glow.fillStyle=color;glow.fillRect(0,0,48,48);glow.restore();
+   ctx.save();ctx.globalAlpha*=.7;
+   for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]])
+     ctx.drawImage(surface.glow,px-margin+dx,py-margin+dy);
+   ctx.restore();
+   ctx.drawImage(surface.sprite,px-margin,py-margin);
+ }else{
+   paintCharacter(ctx,px,py);
+ }
  ctx.restore();
- if(thing.star>0){
+ if(visibleStar){
    const tick=Math.floor((game.PixelDrawer.framesDrawn||0)/4);
    const colors=["#ffe768","#74e5ff","#ffa6ff","#a5ffbf"];
    ctx.save();

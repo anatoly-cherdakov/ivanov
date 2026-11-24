@@ -543,9 +543,9 @@ function drawHero(ctx,thing){
    drawFlightArms(ctx,px,py,displayWidth,displayHeight,thing);
    ctx.save();ctx.translate(face===-1?px+displayWidth:px,py);if(face===-1)ctx.scale(-1,1);
    const sx=pose*sourceWidth,sy=chosen*sourceHeight;
-   const cut1=Math.round(sourceHeight*.39),cut2=Math.round(sourceHeight*.72);
+   const cut1=Math.round(sourceHeight*.39),cut2=Math.round(sourceHeight*.84);
    const d1=displayHeight*cut1/sourceHeight,d2=displayHeight*cut2/sourceHeight;
-   const inset=Math.round(sourceWidth*.24),dx=displayWidth*inset/sourceWidth;
+   const inset=Math.round(sourceWidth*.28),dx=displayWidth*inset/sourceWidth;
    ctx.drawImage(sprite,sx,sy,sourceWidth,cut1,0,0,displayWidth,d1);
    ctx.drawImage(sprite,sx+inset,sy+cut1,sourceWidth-2*inset,cut2-cut1,dx,d1,displayWidth-2*dx,d2-d1);
    ctx.drawImage(sprite,sx,sy+cut2,sourceWidth,sourceHeight-cut2,0,d2,displayWidth,displayHeight-d2);

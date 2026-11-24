@@ -662,6 +662,25 @@ function flightBoostSpeed(unit,gravity,jumpmod,maxUp,xvel){
  }
  return (low+high)/2;
 }
+// Start a flight jump immediately, even when a short tap ends before
+// the next simulation tick. Match the first step of the engine's jump.
+function flightJump(){
+ const p=game&&game.player;
+ if(!flightActive||!p||!p.alive||p.dead||p.dying||p.piping||p.nomove
+    ||game.MapScreener.nokeys||game.MapScreener.underwater||game.GamesRunner.getPaused())return false;
+ if(!p.resting)return flightBoost();
+ if(!p.canjump)return false;
+ if(p.resting.xvel)p.xvel+=p.resting.xvel;
+ p.resting=undefined;
+ p.keys.jump=1;
+ p.keys.jumplev=1;
+ p.keys.up=true;
+ p.canjump=false;
+ p.jumping=true;
+ p.yvel=-(game.unitsize||2);
+ game.AudioPlayer.play(p.power>1?"Jump Super":"Jump Small");
+ return true;
+}
 function flightBoost(){
  const player=game&&game.player;
  if(!canFlightBoost(player))return false;
@@ -949,7 +968,7 @@ function padPress(action,token){
  if(holders.size===0){
    // Do not count automatic A Turbo repeats as separate jump presses.
    if(!token.startsWith("a-turbo:"))recordCheatInput(action);
-   if(action==="Up"&&!flightBoost())pitRescueJump();
+   if(action==="Up"&&!flightJump())pitRescueJump();
    padSignal(action,true);
  }
  holders.add(token);
@@ -1229,7 +1248,7 @@ function beginGame(){
       if(cheatAction&&!event.repeat&&!cheatKeysHeld.has(cheatAction)){
         cheatKeysHeld.add(cheatAction);
         recordCheatInput(cheatAction);
-        if(cheatAction==="Up"&&!flightBoost())pitRescueJump();
+        if(cheatAction==="Up"&&!flightJump())pitRescueJump();
       }
       if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(event.key))event.preventDefault();
       return keydown(event);
@@ -1260,6 +1279,12 @@ function beginGame(){
          const flower=fsm.ObjectMaker.make("FireFlower");
          flower.action(player,flower);
        }
+       const label=$("grasshopperSpeech");
+       const serial=++kuznechikSerial;
+       if(label){label.textContent="Режим полёта";label.hidden=false;}
+       fsm.TimeHandler.addEvent(()=>{
+         if(game===fsm&&serial===kuznechikSerial&&label)label.hidden=true;
+       },180);
      }
    }
    if(fsm.GamesRunner.getPaused())fsm.GamesRunner.play();

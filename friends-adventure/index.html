@@ -187,6 +187,7 @@ let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
 const cheatKeysHeld=new Set();
 let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
+let flightActive=false,discardedPogo=null;
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
  if(!art || !art.data || !art.palette)throw Error("Pixel art data unavailable");
@@ -522,6 +523,7 @@ function drawHero(ctx,thing){
    pogoRise=Math.round((1-Math.cos(phase*Math.PI/24))*3);
    py-=13+pogoRise;
  }
+ drawDiscardedPogo(ctx);
  ctx.save();
  ctx.imageSmoothingEnabled=false;
  if(kuznechikActive){
@@ -537,7 +539,18 @@ function drawHero(ctx,thing){
     ctx.shadowColor=colors[tick%colors.length];
     ctx.filter="brightness(1.28) saturate(1.8) hue-rotate("+((tick%4)*65)+"deg)";
  }
- if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,0,py,displayWidth,displayHeight);}
+ if(flightActive){
+   drawFlightArms(ctx,px,py,displayWidth,displayHeight,thing);
+   ctx.save();ctx.translate(face===-1?px+displayWidth:px,py);if(face===-1)ctx.scale(-1,1);
+   const sx=pose*sourceWidth,sy=chosen*sourceHeight;
+   const cut1=Math.round(sourceHeight*.39),cut2=Math.round(sourceHeight*.72);
+   const d1=displayHeight*cut1/sourceHeight,d2=displayHeight*cut2/sourceHeight;
+   const inset=Math.round(sourceWidth*.24),dx=displayWidth*inset/sourceWidth;
+   ctx.drawImage(sprite,sx,sy,sourceWidth,cut1,0,0,displayWidth,d1);
+   ctx.drawImage(sprite,sx+inset,sy+cut1,sourceWidth-2*inset,cut2-cut1,dx,d1,displayWidth-2*dx,d2-d1);
+   ctx.drawImage(sprite,sx,sy+cut2,sourceWidth,sourceHeight-cut2,0,d2,displayWidth,displayHeight-d2);
+   ctx.restore();
+ }else if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,0,py,displayWidth,displayHeight);}
  else ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,px,py,displayWidth,displayHeight);
  ctx.restore();
  if(thing.star>0){
@@ -586,12 +599,16 @@ function drawKuznechik(ctx,heroX,heroY,heroWidth,heroHeight,rise){
 function resetKuznechik(){
  flowersInRow=0;
  kuznechikActive=false;
+ flightActive=false;
+ discardedPogo=null;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");
  if(label)label.hidden=true;
 }
 function activateKuznechik(player){
  if(!game||player!==game.player)return;
+ flightActive=false;
+ discardedPogo=null;
  kuznechikActive=true;
  const label=$("grasshopperSpeech");
  if(label){label.textContent="Я могу и 10 грамм";label.hidden=false;}
@@ -604,6 +621,85 @@ function activateKuznechik(player){
      label.hidden=true;
    }
  },480);
+}
+// Session-wide flight upgrade after three additional flowers on the pogo.
+function activateFlight(player){
+ if(!game||player!==game.player||!kuznechikActive)return;
+ kuznechikActive=false;
+ flightActive=true;
+ flowersInRow=0;
+ kuznechikSerial++;
+ const label=$("grasshopperSpeech");if(label)label.hidden=true;
+ const unit=game.unitsize||2;
+ const h=player.height>8.5?32:16,w=Math.round(h*.69);
+ const x=Math.round(game.PixelDrawer.getLeft(player)+(player.width*unit-w)/2);
+ const y=Math.round(game.PixelDrawer.getTop(player)+player.height*unit-h)-13;
+ discardedPogo={x,y,w,h,left:game.MapScreener.left||0,frame:game.PixelDrawer.framesDrawn||0,dir:-face};
+}
+function canFlightBoost(player){
+ return !!(flightActive&&game&&player&&player===game.player&&player.alive
+   &&!player.dead&&!player.dying&&!player.piping&&!player.nomove
+   &&!player.resting&&!game.MapScreener.nokeys&&!game.MapScreener.underwater
+   &&!game.GamesRunner.getPaused());
+}
+// Simulate the held jump using the original engine formula and gravity.
+function flightBoostSpeed(unit,gravity,jumpmod,maxUp,xvel){
+ let v=0,height=0,lev=0;
+ for(let i=0;i<240;i++){
+   if(i>0){v+=gravity;if(v>=0)break;height-=v;}
+   v=Math.max(v-unit/Math.pow(++lev,jumpmod-.0014*xvel),maxUp);
+ }
+ const target=height/3;
+ function rise(speed){
+   let dy=0;
+   for(let v=-speed+gravity;v<0;v+=gravity)dy-=v;
+   return dy;
+ }
+ let low=0,high=Math.abs(maxUp);
+ for(let i=0;i<24;i++){
+   const middle=(low+high)/2;
+   if(rise(middle)<target)low=middle;else high=middle;
+ }
+ return (low+high)/2;
+}
+function flightBoost(){
+ const player=game&&game.player;
+ if(!canFlightBoost(player))return false;
+ const screen=game.MapScreener,unit=game.unitsize||2;
+ const gravity=player.gravity||screen.gravity||0.24;
+ const speed=flightBoostSpeed(unit,gravity,screen.jumpmod||1.056,screen.maxyvelinv||-unit*3.5,player.xvel||0);
+ player.yvel=-speed;
+ player.keys.jump=0;
+ player.keys.jumplev=0;
+ player.keys.up=true;
+ player.canjump=false;
+ player.jumping=true;
+ return true;
+}
+function drawFlightArms(ctx,x,y,w,h,thing){
+ const cx=x+w/2,sy=y+h*.48,shoulder=h*.15,length=h*.38;
+ const phase=(game.PixelDrawer.framesDrawn||0)*.17;
+ const angle=thing.resting?0:Math.sin(phase)*.64;
+ ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+ for(const side of [-1,1]){
+   const sx=cx+side*shoulder,ex=sx+side*Math.cos(angle)*length,ey=sy+Math.sin(angle)*length;
+   const mx=sx+(ex-sx)*.52,my=sy+(ey-sy)*.52+Math.abs(Math.sin(angle))*h*.045;
+   const path=()=>{ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(mx,my);ctx.lineTo(ex,ey);ctx.stroke();};
+   ctx.strokeStyle="#32231c";ctx.lineWidth=Math.max(2,h*.135);path();
+   ctx.strokeStyle="#f5a465";ctx.lineWidth=Math.max(1,h*.083);path();
+   ctx.fillStyle="#fcc88b";ctx.beginPath();ctx.arc(ex,ey,Math.max(1,h*.055),0,Math.PI*2);ctx.fill();
+ }
+ ctx.restore();
+}
+function drawDiscardedPogo(ctx){
+ if(!discardedPogo)return;
+ const p=discardedPogo,t=(game.PixelDrawer.framesDrawn||0)-p.frame;
+ if(t<0||t>30){discardedPogo=null;return;}
+ const x=p.x+p.dir*t*.85-(game.MapScreener.left||0)+p.left;
+ const y=p.y-t*.85+t*t*.065;
+ ctx.save();ctx.globalAlpha*=Math.min(1,(30-t)/9);
+ ctx.translate(x+p.w/2,y+p.h);ctx.rotate(p.dir*t*.10);
+ drawKuznechik(ctx,-p.w/2,-p.h,p.w,p.h,0);ctx.restore();
 }
 function resetCheat(){
  cheatStep=0;cheatGroups=0;cheatInvulnerable=false;
@@ -710,7 +806,15 @@ function installKuznechikDamageRule(){
       &&!player.dead&&!player.dying&&!player.flickering);
    // A real hit resets unfinished FireFlower progress too. Star pickups
    // never call this damage branch, so they preserve the streak.
-   if(activeHit&&!kuznechikActive&&flowersInRow>0)flowersInRow=0;
+   if(activeHit)flowersInRow=0;
+   if(activeHit&&flightActive){
+      resetKuznechik();
+      if(!big){
+         kuznechikActive=true;
+         player.EightBitter.animateFlicker(player);
+         return;
+      }
+   }
    if(activeHit&&kuznechikActive){
       // A normal hit breaks the Kuznechik, but must NOT shrink the hero,
       // reduce power from 3 to 1, remove fireballs, or consume a life.
@@ -745,8 +849,14 @@ function installKuznechikFlowerRule(){
      // addPlayer creates a NEW Player on each stage/area; the streak belongs
      // to this game session, not to the particular Player object.
      // Do not reset the streak across level or location transitions.
-     flowersInRow++;
-     if(flowersInRow>=3){flowersInRow=0;activateKuznechik(player);}
+     if(!flightActive){
+       flowersInRow++;
+       if(flowersInRow>=3){
+         flowersInRow=0;
+         if(kuznechikActive)activateFlight(player);
+         else activateKuznechik(player);
+       }
+     }
    }
    return result;
  };
@@ -838,7 +948,7 @@ function padPress(action,token){
  if(holders.size===0){
    // Do not count automatic A Turbo repeats as separate jump presses.
    if(!token.startsWith("a-turbo:"))recordCheatInput(action);
-   if(action==="Up")pitRescueJump();
+   if(action==="Up"&&!flightBoost())pitRescueJump();
    padSignal(action,true);
  }
  holders.add(token);
@@ -899,7 +1009,7 @@ function padTurboTick(state){
        state.jumpHeld=false;
      }
    }else if(now>=state.nextJumpAt && player.canjump
-      && (player.resting || game.MapScreener.underwater)){
+      && (player.resting || game.MapScreener.underwater || canFlightBoost(player))){
      padPress("Up",state.token);
      state.jumpHeld=true;
      // Short tap for low, frequent jumps; landings may take longer naturally.
@@ -1106,7 +1216,8 @@ function beginGame(){
      hideEndingThanks();
      hideLavaSpeech();
      hideRoerichSpeech();
-     return nativeLocation.apply(this,arguments);
+     discardedPogo=null;
+      return nativeLocation.apply(this,arguments);
    };
    fsm.PixelDrawer.setFramerateSkip(2);
    configureRenderer(fsm);
@@ -1117,7 +1228,7 @@ function beginGame(){
       if(cheatAction&&!event.repeat&&!cheatKeysHeld.has(cheatAction)){
         cheatKeysHeld.add(cheatAction);
         recordCheatInput(cheatAction);
-        if(cheatAction==="Up")pitRescueJump();
+        if(cheatAction==="Up"&&!flightBoost())pitRescueJump();
       }
       if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(event.key))event.preventDefault();
       return keydown(event);

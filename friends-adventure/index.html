@@ -540,16 +540,7 @@ function drawHero(ctx,thing){
     ctx.filter="brightness(1.28) saturate(1.8) hue-rotate("+((tick%4)*65)+"deg)";
  }
  if(flightActive){
-   drawFlightArms(ctx,px,py,displayWidth,displayHeight,thing);
-   ctx.save();ctx.translate(face===-1?px+displayWidth:px,py);if(face===-1)ctx.scale(-1,1);
-   const sx=pose*sourceWidth,sy=chosen*sourceHeight;
-   const cut1=Math.round(sourceHeight*.39),cut2=Math.round(sourceHeight*.84);
-   const d1=displayHeight*cut1/sourceHeight,d2=displayHeight*cut2/sourceHeight;
-   const inset=Math.round(sourceWidth*.28),dx=displayWidth*inset/sourceWidth;
-   ctx.drawImage(sprite,sx,sy,sourceWidth,cut1,0,0,displayWidth,d1);
-   ctx.drawImage(sprite,sx+inset,sy+cut1,sourceWidth-2*inset,cut2-cut1,dx,d1,displayWidth-2*dx,d2-d1);
-   ctx.drawImage(sprite,sx,sy+cut2,sourceWidth,sourceHeight-cut2,0,d2,displayWidth,displayHeight-d2);
-   ctx.restore();
+   drawFlightHero(ctx,px,py,displayWidth,displayHeight,thing,sprite,sourceWidth,sourceHeight);
  }else if(face===-1){ctx.translate(px+displayWidth,0);ctx.scale(-1,1);ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,0,py,displayWidth,displayHeight);}
  else ctx.drawImage(sprite,pose*sourceWidth,chosen*sourceHeight,sourceWidth,sourceHeight,px,py,displayWidth,displayHeight);
  ctx.restore();
@@ -695,53 +686,89 @@ function flightBoost(){
  player.jumping=true;
  return true;
 }
-function drawFlightArms(ctx,x,y,w,h,thing){
- // Articulated human arms: rounded shoulder, upper arm, bent elbow,
- // tapered forearm, and a separate fist/thumb. Retain the hero's own body.
- const cx=x+w/2,sy=y+h*.48,k=h/32;
- const phase=(game.PixelDrawer.framesDrawn||0)*.15;
+// A separate flight sprite, not a layer of extra arms over the old sprite.
+// Only the original portrait is reused. The torso, legs and two articulated
+// arms below are drawn together from scratch; no old arm pixels can survive.
+function drawFlightHero(ctx,x,y,w,h,thing,sprite,sw,sh){
+ const scale=h/32,center=x+w/2;
+ const moving=Math.abs(thing.xvel||0)>.24;
+ const phase=(game.PixelDrawer.framesDrawn||0)*.16;
  const wave=thing.resting?0:Math.sin(phase);
- const upperAngle=thing.resting?.12:wave*.84;
- const elbowBend=thing.resting?-.48:-.46-.16*Math.cos(phase);
- const outline="#483023",skin="#f5a465",light="#fcc88b",shade="#c57b43";
- const poly=(points,color)=>{
+ const upper=thing.resting?.18:wave*.78+.04;
+ const bend=thing.resting?-.76:-.68-.16*Math.cos(phase);
+ const dark="#17151a",skin="#e59a62",light="#fcc88b",shade="#b66d40";
+ const navy=chosen===0?"#292a30":"#223a63";
+ const stripe=chosen===0?"#9b9da0":"#a0b3ce";
+ const pant=chosen===0?"#202027":"#222f49";
+ const trouserLight=chosen===0?"#414048":"#3b527a";
+ function poly(points,color){
    ctx.fillStyle=color;ctx.beginPath();
    points.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b));
    ctx.closePath();ctx.fill();
- };
- // Local coordinates run outward from the shoulder, with y down.
- // A shaped segment rather than a single thick straight stroke.
- function limb(length,wide,narrow){
-   poly([[-.65,-wide],[length*.62,-wide*.94],[length,narrow*-.82],
-     [length+.35,narrow],[length*.35,wide*.78],[-.65,wide]],outline);
-   poly([[0,-wide+.55],[length*.62,-wide+.48],[length-.15,-narrow+.43],
-     [length-.1,narrow-.52],[length*.35,wide*.78-.55],[0,wide-.55]],skin);
-   poly([[.25,-wide+.55],[length*.58,-wide+.48],[length-.45,-narrow+.45],
-     [length-.55,-narrow+1.1],[.35,-wide+1.12]],light);
-   poly([[.3,wide-.95],[length*.65,narrow-.38],[length-.1,narrow-.45],
-     [length*.35,wide*.78-.5],[.2,wide-.48]],shade);
  }
+ function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
+ ctx.save();ctx.translate(center,y);ctx.scale(scale,scale);
+ // The shoulder is below the face, at the upper edge of the sleeveless shirt.
+ // Sculpted muscles, forearms and closed hands. No long straight strokes.
  for(const side of [-1,1]){
-   ctx.save();
-   ctx.translate(cx+side*w*.17,sy);
-   ctx.scale(side*k,k);
-   ctx.rotate(upperAngle);
-   // Deltoid and biceps: wider at shoulder, narrow at elbow.
-   poly([[-1.1,-1.2],[.3,-2.2],[2,-2.1],[3,-1.5],[2,1.5],[.1,1.8],[-1.1,.7]],outline);
-   poly([[-.5,-.9],[.4,-1.55],[1.8,-1.5],[2.4,-.8],[1.65,.95],[.15,1.2],[-.5,.4]],skin);
-   limb(4.6,1.7,1.15);
-   ctx.translate(4.3,0);
-   ctx.rotate(elbowBend);
-   limb(4.0,1.35,.85);
-   ctx.translate(3.85,0);
-   // Compact fist with four-knuckle edge and thumb on the lower side.
-   poly([[-.3,-1.1],[.6,-1.6],[1.7,-1.6],[2.25,-.9],[2.25,.65],
-     [1.55,1.45],[.3,1.45],[-.2,.65]],outline);
-   poly([[.05,-.8],[.7,-1.1],[1.55,-1.1],[1.78,-.62],[1.78,.4],
-     [1.3,.95],[.55,.95],[.1,.45]],light);
-   poly([[.1,.05],[.65,.15],[1.05,.62],[.55,1.0],[.08,.55]],skin);
+   ctx.save();ctx.translate(side*3.6,17);ctx.scale(side,1);ctx.rotate(upper);
+   // Deltoid and biceps taper towards the elbow.
+   poly([[-1,-1.4],[.3,-2.35],[2.1,-2.2],[3.8,-1.3],[4.4,-.5],
+         [4.2,1.2],[2,1.9],[.2,1.75],[-1,.7]],dark);
+   poly([[-.45,-.9],[.45,-1.75],[1.9,-1.65],[3.2,-.9],[3.8,-.35],
+         [3.6,.7],[1.8,1.3],[.25,1.1],[-.45,.4]],skin);
+   poly([[.1,-1.3],[.55,-1.75],[1.9,-1.65],[2.8,-1.05],[1.7,-.7],[.3,-.5]],light);
+   poly([[.25,.65],[1.8,1.3],[3.6,.7],[3.8,.15],[1.9,.55]],shade);
+   ctx.translate(3.85,0);ctx.rotate(bend);
+   // Elbow is a visible joint; the forearm has its own taper and shading.
+   poly([[-.65,-1.1],[.6,-1.55],[2.1,-1.45],[3.4,-.9],[3.8,-.65],
+         [3.8,.7],[2.3,1.25],[.45,1.35],[-.65,.65]],dark);
+   poly([[-.05,-.65],[.6,-1.05],[2.05,-.95],[3.15,-.5],[3.3,.25],
+         [2.15,.75],[.45,.8],[-.05,.35]],skin);
+   poly([[.5,-1.05],[2.05,-.95],[3.1,-.5],[2.1,-.25],[.55,-.35]],light);
+   ctx.translate(3.45,0);
+   // Fist, wrist, knuckles and thumb form a distinct compact hand.
+   poly([[-.4,-.9],[.15,-1.6],[1.55,-1.75],[2.35,-.85],[2.35,.7],
+         [1.45,1.65],[.2,1.6],[-.45,.7]],dark);
+   poly([[.05,-.65],[.4,-1.08],[1.45,-1.17],[1.85,-.6],[1.85,.45],
+         [1.2,1.03],[.4,.95],[.02,.45]],light);
+   poly([[.05,.1],[.6,.2],[1.05,.75],[.4,.95],[.05,.45]],skin);
    ctx.restore();
  }
+ // Dedicated sleeveless shirt and waist; no part of the original arms used.
+ poly([[-4.3,15.1],[-2.2,14.7],[2.2,14.7],[4.3,15.1],[4.6,17.2],
+       [3.45,20.2],[3.65,23.8],[-3.65,23.8],[-3.45,20.2],[-4.6,17.2]],dark);
+ poly([[-3.5,15.7],[-1.3,15.2],[1.3,15.2],[3.5,15.7],[3.8,17.2],
+       [2.8,20.1],[3,23.1],[-3,23.1],[-2.8,20.1],[-3.8,17.2]],navy);
+ rect(-3.05,17.2,6.1,1.15,stripe);
+ rect(-2.8,19.65,5.6,1.15,stripe);
+ rect(-2.9,22,5.8,1.05,stripe);
+ rect(-2,15,4,1.2,skin);
+ // Independent trouser legs and boots. A short alternating stride preserves
+ // the walking animation while the arms remain spread.
+ const stride=thing.resting&&moving?Math.sin(phase*1.8)*1.65:0;
+ const airborne=!thing.resting;
+ for(const side of [-1,1]){
+   const step=airborne?side*.65:side*stride;
+   ctx.save();ctx.translate(side*1.65,23.1);
+   poly([[-1.7,-.2],[1.6,-.2],[1.5+step*.45,4.6],
+         [1.6+step,6.7],[-1.6+step,6.7],[-1.25+step*.4,4.3]],dark);
+   poly([[-1.1,.15],[1,.15],[.9+step*.45,4.6],[1+step,6],
+         [-1+step,6],[-.75+step*.4,4.3]],pant);
+   rect(-.8+step*.35,1.2,1.2,3.4,trouserLight);
+   const bootX=step+(face===-1?-.6:0);
+   rect(bootX-1.6,5.9,3.6,1.85,dark);
+   rect(bootX-1.1,6.1,2.5,.7,trouserLight);
+   ctx.restore();
+ }
+ // Original face and hat only, always the neutral pose, cropped above the
+ // shoulder/arm rows. The face is never replaced by an approximation.
+ ctx.save();ctx.scale(face===-1?-1:1,1);
+ const cut=Math.floor(sh*(sw===32?23/48:.48));
+ const portraitWidth=w/scale;
+ ctx.drawImage(sprite,0,chosen*sh,sw,cut,-portraitWidth/2,0,portraitWidth,32*cut/sh);
+ ctx.restore();
+ ctx.restore();
 }
 function drawDiscardedPogo(ctx){
  if(!discardedPogo)return;

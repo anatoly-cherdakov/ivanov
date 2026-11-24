@@ -187,7 +187,7 @@ let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
 const cheatKeysHeld=new Set();
 let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
-let flightActive=false,discardedPogo=null;
+let flightActive=false,tripleShotActive=false,discardedPogo=null;
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
  if(!art || !art.data || !art.palette)throw Error("Pixel art data unavailable");
@@ -625,6 +625,7 @@ function resetKuznechik(){
  flowersInRow=0;
  kuznechikActive=false;
  flightActive=false;
+ tripleShotActive=false;
  discardedPogo=null;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");
@@ -652,6 +653,7 @@ function activateFlight(player){
  if(!game||player!==game.player||!kuznechikActive)return;
  kuznechikActive=false;
  flightActive=true;
+ tripleShotActive=false;
  flowersInRow=0;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");if(label)label.hidden=true;
@@ -731,6 +733,10 @@ function drawFlightHero(ctx,x,y,w,h,thing,sprite,sw,sh){
  const upper=thing.resting?.18:wave*.78+.04;
  const bend=thing.resting?-.76:-.68-.16*Math.cos(phase);
  const dark="#17151a",skin="#e59a62",light="#fcc88b",shade="#b66d40";
+ const armDark=tripleShotActive?"#4b0710":dark;
+ const armSkin=tripleShotActive?"#d91f36":skin;
+ const armLight=tripleShotActive?"#ff7888":light;
+ const armShade=tripleShotActive?"#8e1023":shade;
  const navy=chosen===0?"#292a30":"#223a63";
  const stripe=chosen===0?"#9b9da0":"#a0b3ce";
  const pant=chosen===0?"#202027":"#222f49";
@@ -748,25 +754,25 @@ function drawFlightHero(ctx,x,y,w,h,thing,sprite,sw,sh){
    ctx.save();ctx.translate(side*3.6,17);ctx.scale(side,1);ctx.rotate(upper);
    // Deltoid and biceps taper towards the elbow.
    poly([[-1,-1.4],[.3,-2.35],[2.1,-2.2],[3.8,-1.3],[4.4,-.5],
-         [4.2,1.2],[2,1.9],[.2,1.75],[-1,.7]],dark);
+         [4.2,1.2],[2,1.9],[.2,1.75],[-1,.7]],armDark);
    poly([[-.45,-.9],[.45,-1.75],[1.9,-1.65],[3.2,-.9],[3.8,-.35],
-         [3.6,.7],[1.8,1.3],[.25,1.1],[-.45,.4]],skin);
-   poly([[.1,-1.3],[.55,-1.75],[1.9,-1.65],[2.8,-1.05],[1.7,-.7],[.3,-.5]],light);
-   poly([[.25,.65],[1.8,1.3],[3.6,.7],[3.8,.15],[1.9,.55]],shade);
+         [3.6,.7],[1.8,1.3],[.25,1.1],[-.45,.4]],armSkin);
+   poly([[.1,-1.3],[.55,-1.75],[1.9,-1.65],[2.8,-1.05],[1.7,-.7],[.3,-.5]],armLight);
+   poly([[.25,.65],[1.8,1.3],[3.6,.7],[3.8,.15],[1.9,.55]],armShade);
    ctx.translate(3.85,0);ctx.rotate(bend);
    // Elbow is a visible joint; the forearm has its own taper and shading.
    poly([[-.65,-1.1],[.6,-1.55],[2.1,-1.45],[3.4,-.9],[3.8,-.65],
-         [3.8,.7],[2.3,1.25],[.45,1.35],[-.65,.65]],dark);
+         [3.8,.7],[2.3,1.25],[.45,1.35],[-.65,.65]],armDark);
    poly([[-.05,-.65],[.6,-1.05],[2.05,-.95],[3.15,-.5],[3.3,.25],
-         [2.15,.75],[.45,.8],[-.05,.35]],skin);
-   poly([[.5,-1.05],[2.05,-.95],[3.1,-.5],[2.1,-.25],[.55,-.35]],light);
+         [2.15,.75],[.45,.8],[-.05,.35]],armSkin);
+   poly([[.5,-1.05],[2.05,-.95],[3.1,-.5],[2.1,-.25],[.55,-.35]],armLight);
    ctx.translate(3.45,0);
    // Fist, wrist, knuckles and thumb form a distinct compact hand.
    poly([[-.4,-.9],[.15,-1.6],[1.55,-1.75],[2.35,-.85],[2.35,.7],
-         [1.45,1.65],[.2,1.6],[-.45,.7]],dark);
+         [1.45,1.65],[.2,1.6],[-.45,.7]],armDark);
    poly([[.05,-.65],[.4,-1.08],[1.45,-1.17],[1.85,-.6],[1.85,.45],
-         [1.2,1.03],[.4,.95],[.02,.45]],light);
-   poly([[.05,.1],[.6,.2],[1.05,.75],[.4,.95],[.05,.45]],skin);
+         [1.2,1.03],[.4,.95],[.02,.45]],armLight);
+   poly([[.05,.1],[.6,.2],[1.05,.75],[.4,.95],[.05,.45]],armSkin);
    ctx.restore();
  }
  // Dedicated sleeveless shirt and waist; no part of the original arms used.
@@ -920,6 +926,15 @@ function installKuznechikDamageRule(){
    // A real hit resets unfinished FireFlower progress too. Star pickups
    // never call this damage branch, so they preserve the streak.
    if(activeHit)flowersInRow=0;
+   if(activeHit&&tripleShotActive){
+      // A regular hit removes only the red-arm volley upgrade. Flight stays.
+      tripleShotActive=false;
+      if(big===2)resetKuznechik();
+      else{
+         player.EightBitter.animateFlicker(player);
+         return;
+      }
+   }
    if(activeHit&&flightActive){
       resetKuznechik();
       if(!big){
@@ -962,11 +977,12 @@ function installKuznechikFlowerRule(){
      // addPlayer creates a NEW Player on each stage/area; the streak belongs
      // to this game session, not to the particular Player object.
      // Do not reset the streak across level or location transitions.
-     if(!flightActive){
+     if(!tripleShotActive){
        flowersInRow++;
        if(flowersInRow>=3){
          flowersInRow=0;
-         if(kuznechikActive)activateFlight(player);
+         if(flightActive)tripleShotActive=true;
+         else if(kuznechikActive)activateFlight(player);
          else activateKuznechik(player);
        }
      }
@@ -986,6 +1002,54 @@ function installKuznechikFlowerRule(){
      return original.call(this,player,item);
    };
  }
+}
+function installTripleShotFire(fsm){
+ const player=fsm&&fsm.player;
+ if(!player)return false;
+ const proto=Object.getPrototypeOf(player);
+ if(!proto||proto._tripleShotFireInstalled)return true;
+ const original=proto.fire;
+ if(typeof original!=="function")return false;
+ proto.fire=function(thing){
+   if(!tripleShotActive||!game||thing!==game.player)return original.call(this,thing);
+   const limit=thing.turboFire?9:6;
+   if((thing.numballs||0)+3>limit)return;
+   const unit=game.unitsize||2;
+   const xloc=thing.moveleft
+     ?thing.left-unit/4
+     :thing.right+unit/4;
+   const yloc=thing.top+unit*8;
+   // Positive y points down; zero is straight ahead; negative y points up.
+   const verticalSpeeds=[unit*.75,0,-unit*.75];
+   for(let i=0;i<3;i++){
+     const ball=game.ObjectMaker.make("Fireball",{
+       moveleft:thing.moveleft,
+       speed:unit*1.75,
+       yvel:verticalSpeeds[i],
+       nofall:true,
+       movement:game.moveSimple
+     });
+     // Disable gravity so each of the three shots keeps its chosen angle.
+     ball.nofall=true;
+     game.addThing(ball,xloc,yloc);
+     if(i===0)ball.animate(ball);
+     ball.onDelete=function(){
+       thing.numballs=Math.max(0,(thing.numballs||0)-1);
+     };
+     thing.numballs=(thing.numballs||0)+1;
+     if(thing.turboFire){
+       game.TimeHandler.addEvent(function(){
+         if(ball.alive)ball.EightBitter.killNormal(ball);
+       },52);
+     }
+   }
+   game.addClass(thing,"firing");
+   game.TimeHandler.addEvent(function(){
+     game.removeClass(thing,"firing");
+   },7);
+ };
+ proto._tripleShotFireInstalled=true;
+ return true;
 }
 function configureRenderer(fsm){
  fsm.PixelDrawer.setFramerateSkip(2);
@@ -1361,21 +1425,26 @@ function beginGame(){
    fsm.gameStart();
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
-   // Explicit opt-in test link. Normal game startup is untouched.
-   if(new URLSearchParams(location.search).get("flight-test")==="1"){
+   installTripleShotFire(fsm);
+   // Opt-in upgrade test links; normal startup remains unchanged.
+   const testParams=new URLSearchParams(location.search);
+   const tripleTest=testParams.get("triple-test")==="1";
+   const flightTest=testParams.get("flight-test")==="1";
+   if(tripleTest||flightTest){
      const player=fsm.player;
      if(player&&player.alive){
        player.power=3;
        fsm.StatsHolder.set("power",3);
        fsm.playerGetsBig(player,true);
        fsm.playerGetsFire(player);
-       for(let i=0;i<6;i++){
+       const flowerCount=tripleTest?9:6;
+       for(let i=0;i<flowerCount;i++){
          const flower=fsm.ObjectMaker.make("FireFlower");
          flower.action(player,flower);
        }
        const label=$("grasshopperSpeech");
        const serial=++kuznechikSerial;
-       if(label){label.textContent="Режим полёта";label.hidden=false;}
+       if(label){label.textContent=tripleTest?"Тройной огонь!":"Режим полёта";label.hidden=false;}
        fsm.TimeHandler.addEvent(()=>{
          if(game===fsm&&serial===kuznechikSerial&&label)label.hidden=true;
        },180);

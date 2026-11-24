@@ -696,19 +696,52 @@ function flightBoost(){
  return true;
 }
 function drawFlightArms(ctx,x,y,w,h,thing){
- const cx=x+w/2,sy=y+h*.48,shoulder=h*.15,length=h*.38;
- const phase=(game.PixelDrawer.framesDrawn||0)*.17;
- const angle=thing.resting?0:Math.sin(phase)*.64;
- ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
- for(const side of [-1,1]){
-   const sx=cx+side*shoulder,ex=sx+side*Math.cos(angle)*length,ey=sy+Math.sin(angle)*length;
-   const mx=sx+(ex-sx)*.52,my=sy+(ey-sy)*.52+Math.abs(Math.sin(angle))*h*.045;
-   const path=()=>{ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(mx,my);ctx.lineTo(ex,ey);ctx.stroke();};
-   ctx.strokeStyle="#32231c";ctx.lineWidth=Math.max(2,h*.135);path();
-   ctx.strokeStyle="#f5a465";ctx.lineWidth=Math.max(1,h*.083);path();
-   ctx.fillStyle="#fcc88b";ctx.beginPath();ctx.arc(ex,ey,Math.max(1,h*.055),0,Math.PI*2);ctx.fill();
+ // Articulated human arms: rounded shoulder, upper arm, bent elbow,
+ // tapered forearm, and a separate fist/thumb. Retain the hero's own body.
+ const cx=x+w/2,sy=y+h*.48,k=h/32;
+ const phase=(game.PixelDrawer.framesDrawn||0)*.15;
+ const wave=thing.resting?0:Math.sin(phase);
+ const upperAngle=thing.resting?.12:wave*.84;
+ const elbowBend=thing.resting?-.48:-.46-.16*Math.cos(phase);
+ const outline="#483023",skin="#f5a465",light="#fcc88b",shade="#c57b43";
+ const poly=(points,color)=>{
+   ctx.fillStyle=color;ctx.beginPath();
+   points.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b));
+   ctx.closePath();ctx.fill();
+ };
+ // Local coordinates run outward from the shoulder, with y down.
+ // A shaped segment rather than a single thick straight stroke.
+ function limb(length,wide,narrow){
+   poly([[-.65,-wide],[length*.62,-wide*.94],[length,narrow*-.82],
+     [length+.35,narrow],[length*.35,wide*.78],[-.65,wide]],outline);
+   poly([[0,-wide+.55],[length*.62,-wide+.48],[length-.15,-narrow+.43],
+     [length-.1,narrow-.52],[length*.35,wide*.78-.55],[0,wide-.55]],skin);
+   poly([[.25,-wide+.55],[length*.58,-wide+.48],[length-.45,-narrow+.45],
+     [length-.55,-narrow+1.1],[.35,-wide+1.12]],light);
+   poly([[.3,wide-.95],[length*.65,narrow-.38],[length-.1,narrow-.45],
+     [length*.35,wide*.78-.5],[.2,wide-.48]],shade);
  }
- ctx.restore();
+ for(const side of [-1,1]){
+   ctx.save();
+   ctx.translate(cx+side*w*.17,sy);
+   ctx.scale(side*k,k);
+   ctx.rotate(upperAngle);
+   // Deltoid and biceps: wider at shoulder, narrow at elbow.
+   poly([[-1.1,-1.2],[.3,-2.2],[2,-2.1],[3,-1.5],[2,1.5],[.1,1.8],[-1.1,.7]],outline);
+   poly([[-.5,-.9],[.4,-1.55],[1.8,-1.5],[2.4,-.8],[1.65,.95],[.15,1.2],[-.5,.4]],skin);
+   limb(4.6,1.7,1.15);
+   ctx.translate(4.3,0);
+   ctx.rotate(elbowBend);
+   limb(4.0,1.35,.85);
+   ctx.translate(3.85,0);
+   // Compact fist with four-knuckle edge and thumb on the lower side.
+   poly([[-.3,-1.1],[.6,-1.6],[1.7,-1.6],[2.25,-.9],[2.25,.65],
+     [1.55,1.45],[.3,1.45],[-.2,.65]],outline);
+   poly([[.05,-.8],[.7,-1.1],[1.55,-1.1],[1.78,-.62],[1.78,.4],
+     [1.3,.95],[.55,.95],[.1,.45]],light);
+   poly([[.1,.05],[.65,.15],[1.05,.62],[.55,1.0],[.08,.55]],skin);
+   ctx.restore();
+ }
 }
 function drawDiscardedPogo(ctx){
  if(!discardedPogo)return;

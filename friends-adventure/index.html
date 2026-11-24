@@ -862,13 +862,14 @@ function installKuznechikFlowerRule(){
  };
  // Star power is protection, not damage: collecting a star must not
  // interrupt the FireFlower streak. Actual damage still resets the counter.
- // Keep the existing Mushroom and Mushroom1Up behavior unchanged.
+ // Preserve the old first-three rule, but a mushroom/1-up is NOT damage
+ // to a pogo rider and must not erase progress toward flight.
  for(const name of ["Mushroom","Mushroom1Up"]){
    const other=items[name];
    if(!other||typeof other.action!=="function")continue;
    const original=other.action;
    other.action=function(player,item){
-     if(game&&player&&player.player&&player.EightBitter===game)flowersInRow=0;
+     if(game&&player&&player.player&&player.EightBitter===game&&!kuznechikActive&&!flightActive)flowersInRow=0;
      return original.call(this,player,item);
    };
  }
@@ -1247,6 +1248,20 @@ function beginGame(){
    fsm.gameStart();
    const name=$("levelSelect").value;
    if(name!=="1-1")fsm.setMap(name);
+   // Explicit opt-in test link. Normal game startup is untouched.
+   if(new URLSearchParams(location.search).get("flight-test")==="1"){
+     const player=fsm.player;
+     if(player&&player.alive){
+       player.power=3;
+       fsm.StatsHolder.set("power",3);
+       fsm.playerGetsBig(player,true);
+       fsm.playerGetsFire(player);
+       for(let i=0;i<6;i++){
+         const flower=fsm.ObjectMaker.make("FireFlower");
+         flower.action(player,flower);
+       }
+     }
+   }
    if(fsm.GamesRunner.getPaused())fsm.GamesRunner.play();
    syncPauseButton();
    changeQuality();

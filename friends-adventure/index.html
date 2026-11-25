@@ -1150,8 +1150,9 @@ const padMapping={
 const padHeld={Up:new Set(),Sprint:new Set(),Down:new Set(),Left:new Set(),Right:new Set()};
 const padPointers=new Map();
 const padEvent={preventDefault(){}};
-// A touch tap is a complete jump, not a one-frame keyboard press.
-// The latch uses simulation ticks, so it works even on slower phones.
+// Preserve variable jump height: only guarantee a short initial pulse
+// for fast touch taps. Longer holds use the original variable-height physics.
+// Count simulation ticks instead of wall-clock time on slower phones.
 let padJumpLatch=null;
 function cancelPadJumpLatch(release){
  const latch=padJumpLatch;
@@ -1171,13 +1172,14 @@ function startPadJumpLatch(player){
      cancelPadJumpLatch(false);
      return true;
    }
-   // A ceiling or the jump apex ends the automatic hold. A physical
-   // finger still on A is allowed to keep the ordinary engine key state.
-   if(++latch.ticks>=36||(latch.ticks>=3&&player.yvel>=0)){
+   // Four initial ticks (~67 ms at 60 Hz) prevent lost/tiny taps.
+   // After that, releasing A immediately stops additional upward thrust.
+   // If a finger is still down, native jump control continues unchanged.
+   if(++latch.ticks>=4){
      cancelPadJumpLatch(!padHeld.Up.size);
      return true;
    }
- },1,36);
+ },1,4);
 }
 function padReady(){
  return !!(game&&game.player&&!$("playing").hidden
@@ -1198,7 +1200,7 @@ function padPress(action,token){
      const player=game.player;
      if(padJumpLatch){
        // In flight a second tap must immediately trigger an air boost.
-       // A normal midair tap must not shorten the first ground jump.
+       // A normal midair tap during the minimum pulse is merged with it.
        if(canFlightBoost(player))cancelPadJumpLatch(true);
        else if(padJumpLatch.player===player){holders.add(token);return;}
        else cancelPadJumpLatch(false);
@@ -1277,7 +1279,7 @@ function padTurboTick(state){
       ((player.canjump&&(player.resting||game.MapScreener.underwater))||canFlightBoost(player))){
      padPress("Up",state.token);
      state.jumpHeld=true;
-     // The ground-jump latch keeps the jump full-height; air boosts repeat.
+     // Ground jumps use the normal variable-height 90ms pulse; air boosts repeat.
      state.jumpReleaseAt=now+90;
      state.nextJumpAt=now+105;
    }

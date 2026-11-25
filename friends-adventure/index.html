@@ -396,6 +396,45 @@ function drawEndingThing(ctx,thing){
  ctx.restore();
  return true;
 }
+// The mobile countdown must not require hundreds of simulation ticks or
+// hundreds of audio/DOM updates. Preserve every bonus point and the final
+// digit used by the original fireworks sequence.
+function installFastMobileCountdown(){
+ const proto=FullScreenMario.prototype;
+ if(proto._friendsFastMobileCountdown)return;
+ proto._friendsFastMobileCountdown=true;
+ const original=proto.collideCastleDoor;
+ proto.collideCastleDoor=function(thing,other){
+   const mobile=window.matchMedia("(max-width:767px), (pointer:coarse)").matches;
+   const fsm=thing&&thing.EightBitter;
+   if(!mobile||!fsm||!thing.player)return original.call(this,thing,other);
+   const remaining=fsm.StatsHolder.get("time");
+   if(!Number.isFinite(remaining))return original.call(this,thing,other);
+   if(thing._friendsCountdownStarted)return;
+   thing._friendsCountdownStarted=true;
+   let fireworks=Math.max(0,remaining)%10;
+   if(![1,3,6].includes(fireworks))fireworks=0;
+   fsm.killNormal(thing);
+   const chunk=Math.max(1,Math.ceil(remaining/12));
+   let batches=0;
+   fsm.TimeHandler.addEventInterval(function(){
+     const current=Math.max(0,fsm.StatsHolder.get("time"));
+     const amount=Math.min(current,chunk);
+     if(amount){
+       fsm.StatsHolder.decrease("time",amount);
+       fsm.StatsHolder.increase("score",amount*50);
+       // A few coin sounds rather than one costly playback per second.
+       if(batches++%4===0)fsm.AudioPlayer.play("Coin");
+     }
+     if(fsm.StatsHolder.get("time")<=0){
+       fsm.TimeHandler.addEvent(function(){
+         fsm.animateEndLevelFireworks(thing,other,fireworks);
+       },35);
+       return true;
+     }
+   },1,12);
+ };
+}
 function installLocalizedEndings(){
  const klass=FullScreenMario.prototype;
  if(klass._friendsEndingInstalled)return;
@@ -1111,6 +1150,35 @@ const padMapping={
 const padHeld={Up:new Set(),Sprint:new Set(),Down:new Set(),Left:new Set(),Right:new Set()};
 const padPointers=new Map();
 const padEvent={preventDefault(){}};
+// A touch tap is a complete jump, not a one-frame keyboard press.
+// The latch uses simulation ticks, so it works even on slower phones.
+let padJumpLatch=null;
+function cancelPadJumpLatch(release){
+ const latch=padJumpLatch;
+ if(!latch)return;
+ padJumpLatch=null;
+ if(release&&game===latch.fsm&&game.player===latch.player)
+   padSignal("Up",false);
+}
+function startPadJumpLatch(player){
+ const fsm=game;
+ const latch={fsm,player,ticks:0};
+ padJumpLatch=latch;
+ fsm.TimeHandler.addEventInterval(function(){
+   if(padJumpLatch!==latch)return true;
+   if(game!==fsm||fsm.player!==player||!player.alive||player.dead||
+      player.dying||player.piping||fsm.MapScreener.nokeys){
+     cancelPadJumpLatch(false);
+     return true;
+   }
+   // A ceiling or the jump apex ends the automatic hold. A physical
+   // finger still on A is allowed to keep the ordinary engine key state.
+   if(++latch.ticks>=36||(latch.ticks>=3&&player.yvel>=0)){
+     cancelPadJumpLatch(!padHeld.Up.size);
+     return true;
+   }
+ },1,36);
+}
 function padReady(){
  return !!(game&&game.player&&!$("playing").hidden
     &&game.GamesRunner&&!game.GamesRunner.getPaused());
@@ -1126,8 +1194,24 @@ function padPress(action,token){
  if(holders.size===0){
    // Do not count automatic A Turbo repeats as separate jump presses.
    if(!token.startsWith("a-turbo:"))recordCheatInput(action);
-   if(action==="Up"&&!flightJump())pitRescueJump();
-   padSignal(action,true);
+   if(action==="Up"){
+     const player=game.player;
+     if(padJumpLatch){
+       // In flight a second tap must immediately trigger an air boost.
+       // A normal midair tap must not shorten the first ground jump.
+       if(canFlightBoost(player))cancelPadJumpLatch(true);
+       else if(padJumpLatch.player===player){holders.add(token);return;}
+       else cancelPadJumpLatch(false);
+     }
+     const grounded=!!(player.resting&&player.canjump&&player.alive&&
+       !player.dead&&!player.dying&&!player.piping&&!player.nomove&&
+       !game.MapScreener.underwater&&!game.MapScreener.nokeys);
+     if(!flightJump())pitRescueJump();
+     padSignal(action,true);
+     if(grounded&&player.keys.jump>0)startPadJumpLatch(player);
+   }else{
+     padSignal(action,true);
+   }
  }
  holders.add(token);
 }
@@ -1135,6 +1219,8 @@ function padRelease(action,token){
  const holders=padHeld[action];
  if(!holders||!holders.delete(token))return;
  if(holders.size===0){
+   if(action==="Up"&&padJumpLatch&&padJumpLatch.fsm===game&&padJumpLatch.player===game.player)
+     return;
    padSignal(action,false);
    // If two opposite directions were held, let the other stay active.
    const opposite=action==="Left"?"Right":action==="Right"?"Left":null;
@@ -1155,6 +1241,7 @@ function padStopPointer(pointerId){
  state.button.classList.remove("is-held");
 }
 function padStopAll(){
+ cancelPadJumpLatch(true);
  for(const id of [...padPointers.keys()])padStopPointer(id);
  for(const action of Object.keys(padHeld)){
    if(padHeld[action].size){
@@ -1186,11 +1273,11 @@ function padTurboTick(state){
        padRelease("Up",state.token);
        state.jumpHeld=false;
      }
-   }else if(now>=state.nextJumpAt && player.canjump
-      && (player.resting || game.MapScreener.underwater || canFlightBoost(player))){
+   }else if(now>=state.nextJumpAt &&
+      ((player.canjump&&(player.resting||game.MapScreener.underwater))||canFlightBoost(player))){
      padPress("Up",state.token);
      state.jumpHeld=true;
-     // Short tap for low, frequent jumps; landings may take longer naturally.
+     // The ground-jump latch keeps the jump full-height; air boosts repeat.
      state.jumpReleaseAt=now+90;
      state.nextJumpAt=now+105;
    }
@@ -1297,6 +1384,7 @@ function beginGame(){
    FullScreenMario.scale=1;
    FullScreenMario.gravity=0.24;
    FullScreenMario.prototype.settings.sprites.scale=1;
+   installFastMobileCountdown();
    installLocalizedEndings();
    installCheatMazeBypass();
    installKuznechikFlowerRule();
@@ -1391,6 +1479,7 @@ function beginGame(){
    // Clear the ending caption when the engine travels to another location.
    const nativeLocation=fsm.setLocation;
    fsm.setLocation=function(){
+     padStopAll();
      hideEndingThanks();
      hideLavaSpeech();
      hideRoerichSpeech();

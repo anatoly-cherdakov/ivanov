@@ -187,7 +187,7 @@ let cheatStep=0,cheatGroups=0,cheatInvulnerable=false,cheatNoticeSerial=0;
 const cheatKeysHeld=new Set();
 let flowersInRow=0;
 let kuznechikActive=false,kuznechikSerial=0;
-let flightActive=false,tripleShotActive=false,discardedPogo=null;
+let flightActive=false,tripleShotActive=false,bidirectionalShotActive=false,discardedPogo=null;
 const $=id=>document.getElementById(id);
 async function decodePixelArt(art){
  if(!art || !art.data || !art.palette)throw Error("Pixel art data unavailable");
@@ -665,6 +665,7 @@ function resetKuznechik(){
  kuznechikActive=false;
  flightActive=false;
  tripleShotActive=false;
+ bidirectionalShotActive=false;
  discardedPogo=null;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");
@@ -693,6 +694,7 @@ function activateFlight(player){
  kuznechikActive=false;
  flightActive=true;
  tripleShotActive=false;
+ bidirectionalShotActive=false;
  flowersInRow=0;
  kuznechikSerial++;
  const label=$("grasshopperSpeech");if(label)label.hidden=true;
@@ -965,6 +967,15 @@ function installKuznechikDamageRule(){
    // A real hit resets unfinished FireFlower progress too. Star pickups
    // never call this damage branch, so they preserve the streak.
    if(activeHit)flowersInRow=0;
+   if(activeHit&&bidirectionalShotActive){
+      // Lose only the fourth upgrade; red arms, flight and triple fire stay.
+      bidirectionalShotActive=false;
+      if(big===2)resetKuznechik();
+      else{
+         player.EightBitter.animateFlicker(player);
+         return;
+      }
+   }
    if(activeHit&&tripleShotActive){
       // A regular hit removes only the red-arm volley upgrade. Flight stays.
       tripleShotActive=false;
@@ -1016,11 +1027,12 @@ function installKuznechikFlowerRule(){
      // addPlayer creates a NEW Player on each stage/area; the streak belongs
      // to this game session, not to the particular Player object.
      // Do not reset the streak across level or location transitions.
-     if(!tripleShotActive){
+     if(!bidirectionalShotActive){
        flowersInRow++;
        if(flowersInRow>=3){
          flowersInRow=0;
-         if(flightActive)tripleShotActive=true;
+         if(tripleShotActive)bidirectionalShotActive=true;
+         else if(flightActive)tripleShotActive=true;
          else if(kuznechikActive)activateFlight(player);
          else activateKuznechik(player);
        }
@@ -1051,35 +1063,41 @@ function installTripleShotFire(fsm){
  if(typeof original!=="function")return false;
  proto.fire=function(thing){
    if(!tripleShotActive||!game||thing!==game.player)return original.call(this,thing);
-   const limit=thing.turboFire?9:6;
-   if((thing.numballs||0)+3>limit)return;
+   const directions=bidirectionalShotActive?[false,true]:[!!thing.moveleft];
+   const volleySize=directions.length*3;
+   // At most two volleys normally or three with Turbo, no queued shots.
+   const limit=volleySize*(thing.turboFire?3:2);
+   if((thing.numballs||0)+volleySize>limit)return;
    const unit=game.unitsize||2;
-   const xloc=thing.moveleft
-     ?thing.left-unit/4
-     :thing.right+unit/4;
    const yloc=thing.top+unit*8;
-   // Positive y points down; zero is straight ahead; negative y points up.
    const verticalSpeeds=[unit*.75,0,-unit*.75];
-   for(let i=0;i<3;i++){
-     const ball=game.ObjectMaker.make("Fireball",{
-       moveleft:thing.moveleft,
-       speed:unit*1.75,
-       yvel:verticalSpeeds[i],
-       nofall:true,
-       movement:game.moveSimple
-     });
-     // Disable gravity so each of the three shots keeps its chosen angle.
-     ball.nofall=true;
-     game.addThing(ball,xloc,yloc);
-     if(i===0)ball.animate(ball);
-     ball.onDelete=function(){
-       thing.numballs=Math.max(0,(thing.numballs||0)-1);
-     };
-     thing.numballs=(thing.numballs||0)+1;
-     if(thing.turboFire){
-       game.TimeHandler.addEvent(function(){
-         if(ball.alive)ball.EightBitter.killNormal(ball);
-       },52);
+   let first=true;
+   for(const left of directions){
+     const xloc=left?thing.left-unit/4:thing.right+unit/4;
+     for(const yvel of verticalSpeeds){
+       const ball=game.ObjectMaker.make("Fireball",{
+         moveleft:left,
+         speed:unit*1.75,
+         xvel:(left?-1:1)*unit*1.75,
+         yvel,
+         nofall:true,
+         movement:game.moveSimple
+       });
+       ball.nofall=true;
+       game.addThing(ball,xloc,yloc);
+       // Start on the correct side immediately, even before moveSimple runs.
+       ball.xvel=(left?-1:1)*unit*1.75;
+       if(first){ball.animate(ball);first=false;}
+       ball.onDelete=function(){
+         thing.numballs=Math.max(0,(thing.numballs||0)-1);
+       };
+       thing.numballs=(thing.numballs||0)+1;
+       // Bound the lifetime of six-shot volleys, including off-screen balls.
+       if(thing.turboFire||bidirectionalShotActive){
+         game.TimeHandler.addEvent(function(){
+           if(ball.alive)ball.EightBitter.killNormal(ball);
+         },52);
+       }
      }
    }
    game.addClass(thing,"firing");
@@ -1519,23 +1537,24 @@ function beginGame(){
    installTripleShotFire(fsm);
    // Opt-in upgrade test links; normal startup remains unchanged.
    const testParams=new URLSearchParams(location.search);
+   const bidirectionalTest=testParams.get("six-test")==="1";
    const tripleTest=testParams.get("triple-test")==="1";
    const flightTest=testParams.get("flight-test")==="1";
-   if(tripleTest||flightTest){
+   if(bidirectionalTest||tripleTest||flightTest){
      const player=fsm.player;
      if(player&&player.alive){
        player.power=3;
        fsm.StatsHolder.set("power",3);
        fsm.playerGetsBig(player,true);
        fsm.playerGetsFire(player);
-       const flowerCount=tripleTest?9:6;
+       const flowerCount=bidirectionalTest?12:tripleTest?9:6;
        for(let i=0;i<flowerCount;i++){
          const flower=fsm.ObjectMaker.make("FireFlower");
          flower.action(player,flower);
        }
        const label=$("grasshopperSpeech");
        const serial=++kuznechikSerial;
-       if(label){label.textContent=tripleTest?"Тройной огонь!":"Режим полёта";label.hidden=false;}
+       if(label){label.textContent=bidirectionalTest?"Огонь в обе стороны!":tripleTest?"Тройной огонь!":"Режим полёта";label.hidden=false;}
        fsm.TimeHandler.addEvent(()=>{
          if(game===fsm&&serial===kuznechikSerial&&label)label.hidden=true;
        },180);

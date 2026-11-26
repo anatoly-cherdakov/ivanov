@@ -266,7 +266,7 @@ function maybeShowRoerichSpeech(boss,fsm){
  const caption=$("roerichSpeech");
  if(!caption)return;
  boss._roerichSpeechShown=true;
- caption.textContent="Маловато Рериха";
+ caption.textContent="Недостаточно Рериха";
  caption.hidden=false;
  const serial=++roerichSpeechSerial;
  fsm.TimeHandler.addEvent(function(){
@@ -677,7 +677,7 @@ function activateKuznechik(player){
  discardedPogo=null;
  kuznechikActive=true;
  const label=$("grasshopperSpeech");
- if(label){label.textContent="Я могу и 10 грамм";label.hidden=false;}
+ if(label){label.textContent="Могу хоть 9 грамм";label.hidden=false;}
  // Only the caption expires after 480 game ticks (~8 seconds).
  // The Kuznechik itself stays until the player takes damage.
  const currentGame=game;
@@ -1474,7 +1474,7 @@ function beginGame(){
    $("game").appendChild(endingMessage);
    const pogoCaption=document.createElement("div");
    pogoCaption.id="grasshopperSpeech";
-   pogoCaption.textContent="Я могу и 10 грамм";
+   pogoCaption.textContent="Могу хоть 9 грамм";
    pogoCaption.hidden=true;
    $("game").appendChild(pogoCaption);
    const lavaCaption=document.createElement("div");
@@ -1485,7 +1485,7 @@ function beginGame(){
    $("game").appendChild(lavaCaption);
    const roerichCaption=document.createElement("div");
    roerichCaption.id="roerichSpeech";
-   roerichCaption.textContent="Маловато Рериха";
+   roerichCaption.textContent="Недостаточно Рериха";
    roerichCaption.hidden=true;
    roerichCaption.setAttribute("role","status");
    $("game").appendChild(roerichCaption);
